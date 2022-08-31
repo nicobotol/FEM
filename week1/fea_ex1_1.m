@@ -9,8 +9,8 @@ clc
 
 %--- Input file ----------------------------------------------------------%
 %example1                % Input file
-test1                   % Input file
-%exercise_1_1             % Input file
+%test1                   % Input file
+exercise_1_1             % Input file
 
 neqn = size(X,1)*size(X,2);         % Number of equations
 ne = size(IX,1);                    % Number of elements
@@ -180,7 +180,7 @@ function [strain,stress, N, R]=recover2(mprop,X,IX,D,ne,strain,stress,P);
 % and nodal reaction forces
 strain = zeros(ne, 1);
 stress = zeros(ne, 1);
-B0_sum = zeros(2*size(IX,1), 1);
+B0_sum = zeros(2*size(X,1), 1);
 for e=1:ne
   d = zeros(4, 1);
   V = [IX(e,1)*2-1 IX(e,1)*2 IX(e,2)*2-1 IX(e,2)*2];
@@ -217,7 +217,8 @@ for e=1:ne
   end
 
 end
-
+  B0_sum
+  P
   R = B0_sum - P;
 pause
 
