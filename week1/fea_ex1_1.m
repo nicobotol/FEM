@@ -30,15 +30,36 @@ stress=zeros(ne,1);                     % Element stress vector
 
 [Kmatr]=buildstiff(X,IX,ne,mprop,Kmatr);    % Build global stiffness matrix
 
-[Kmatr,Pmatr]=enforce(Kmatr,P,bound);           % Enforce boundary conditions
+[Kmatr,Pmatr]=enforce(Kmatr,P,bound);       % Enforce boundary conditions
 
-D = Kmatr \ Pmatr                                            % Solve system of equations
+D = Kmatr \ Pmatr;                          % Solve system of equations
 
 [strain,stress]=recover(mprop,X,IX,D,ne,strain,stress); % Calculate element 
-strain                                                        % stress and strain
-stress                                                      
-[strain,stress,N,R]=recover2(mprop,X,IX,D,ne,strain,stress,P); % Calculate element 
-R
+                                                        % stress and strain
+
+% Calculate element axial forces and the support reactions
+[strain,stress,N,R]=recover2(mprop,X,IX,D,ne,strain,stress,P); 
+
+%--- Print the results on the command window -----------------------------%
+% External matrix
+disp('External forces applied (N)')
+P'
+
+% Stress
+disp('Stress on the bars (MPa)')
+stress'
+
+% Strain
+disp('Strain of the bars')
+strain'
+
+% Forces on the bars
+disp('Internal forces on the bar (N)')
+N
+
+% Support reaction
+disp('Support reactions forces (N)')
+R'
 %--- Plot results --------------------------------------------------------%                                                        
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
@@ -51,6 +72,8 @@ function [P]=buildload(X,IX,ne,P,loads,mprop);
 rowX = size(X, 1);
 columnX = size(X, 2);
 
+% P contains the external forces applied by the load
+% P is a 2nnx1 matrix (nn is the number of nodes) 
 P = zeros(columnX * rowX, 1); % assign the memory for P
 
 for i=1:size(loads,1)
@@ -71,36 +94,38 @@ function [K]=buildstiff(X,IX,ne,mprop,K);
 
 K = zeros(2*size(X, 1)); % allocate memory
 
-for e = 1:ne
-    
-    i = IX(e, 1);
-    j = IX(e, 2);
-    xi = X(i, 1);
-    xj = X(j, 1);
-    yi = X(i, 2);
-    yj = X(j, 2);
-    delta_x = xj - xi;
-    delta_y = yj - yi;
-    L0 = sqrt(delta_x^2 + delta_y^2);
-    
-    % displacement vector
-    B0 = 1/L0^2 * [-delta_x -delta_y delta_x delta_y]';
-    
-    % materials properties
-    propno = IX(e, 3);
-    E = mprop(propno, 1);
-    A = mprop(propno, 2);
-
-    k_e = E * A * L0 * B0 * B0'; % 4x4 matrix
-    
-    % vector of the components of B0 to take
-    V = [IX(e,1)*2-1 IX(e,1)*2 IX(e,2)*2-1 IX(e,2)*2];
-    
-    for ii = 1:4
-      for jj = 1:4
-        K(V(ii), V(jj)) = K(V(ii), V(jj)) + k_e(ii, jj);
-      end
+for e = 1:ne % cycle on the different bar 
+  i = IX(e, 1);
+  j = IX(e, 2);
+  % coordinates of the bar tips
+  xi = X(i, 1); 
+  xj = X(j, 1);
+  yi = X(i, 2);
+  yj = X(j, 2);
+  delta_x = xj - xi;
+  delta_y = yj - yi;
+  % initial length of the bar
+  L0 = sqrt(delta_x^2 + delta_y^2);
+  % displacement vector (4x1)
+  B0 = 1/L0^2 * [-delta_x -delta_y delta_x delta_y]';
+  
+  % materials properties
+  propno = IX(e, 3);
+  E = mprop(propno, 1);
+  A = mprop(propno, 2);
+  
+  % element stiffness matrix
+  k_e = E * A * L0 * B0 * B0'; % 4x4 matrix
+  
+  % vector of index used for building K
+  V = [IX(e,1)*2-1 IX(e,1)*2 IX(e,2)*2-1 IX(e,2)*2];
+  
+  % build K by summing k_e
+  for ii = 1:4
+    for jj = 1:4
+      K(V(ii), V(jj)) = K(V(ii), V(jj)) + k_e(ii, jj);
     end
+  end
 
 end
 pause
@@ -132,12 +157,15 @@ function [strain,stress]=recover(mprop,X,IX,D,ne,strain,stress);
 
 % This subroutine recovers the element stress, element strain, 
 % and nodal reaction forces
-strain = zeros(ne, 1);
+
+% allocate memory for stress and strain vectors
+strain = zeros(ne, 1); 
 stress = zeros(ne, 1);
 
 for e=1:ne
-  d = zeros(4, 1);
-  V = [IX(e,1)*2-1 IX(e,1)*2 IX(e,2)*2-1 IX(e,2)*2];
+  d = zeros(4, 1); % allocate memory for element stiffness matrix
+
+  V = [IX(e,1)*2-1 IX(e,1)*2 IX(e,2)*2-1 IX(e,2)*2]; % index for buildg K
 
   % build the matrix d from D
   for i = 1:4
@@ -211,15 +239,17 @@ for e=1:ne
   strain(e) = B0' * d; 
   stress(e) = strain(e) * E;
   N(e) = stress(e) * A;
-    
+  
+  % sum B0 after having transformed it in order to be compliant for the sum
+  % with P
   for jj = 1:4
       B0_sum(V(jj)) = B0_sum(V(jj)) + B0(jj)*N(e)*L0;
   end
 
 end
-  B0_sum
-  P
-  R = B0_sum - P;
+
+% compute the support reactions (N)
+R = B0_sum - P; % 2nnx1 (nn is node number)
 pause
 
 return
