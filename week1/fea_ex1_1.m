@@ -60,6 +60,7 @@ N
 % Support reaction
 disp('Support reactions forces (N)')
 R'
+
 %--- Plot results --------------------------------------------------------%                                                        
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
@@ -118,12 +119,12 @@ for e = 1:ne % cycle on the different bar
   k_e = E * A * L0 * B0 * B0'; % 4x4 matrix
   
   % vector of index used for building K
-  V = [IX(e,1)*2-1 IX(e,1)*2 IX(e,2)*2-1 IX(e,2)*2];
+  edof = [IX(e,1)*2-1 IX(e,1)*2 IX(e,2)*2-1 IX(e,2)*2];
   
   % build K by summing k_e
   for ii = 1:4
     for jj = 1:4
-      K(V(ii), V(jj)) = K(V(ii), V(jj)) + k_e(ii, jj);
+      K(edof(ii), edof(jj)) = K(edof(ii), edof(jj)) + k_e(ii, jj);
     end
   end
 
@@ -165,11 +166,11 @@ stress = zeros(ne, 1);
 for e=1:ne
   d = zeros(4, 1); % allocate memory for element stiffness matrix
 
-  V = [IX(e,1)*2-1 IX(e,1)*2 IX(e,2)*2-1 IX(e,2)*2]; % index for buildg K
+  edof = [IX(e,1)*2-1 IX(e,1)*2 IX(e,2)*2-1 IX(e,2)*2]; % index for buildg K
 
   % build the matrix d from D
   for i = 1:4
-    d(i) = D(V(i));
+    d(i) = D(edof(i));
   end
 
   i = IX(e, 1);
@@ -192,7 +193,6 @@ for e=1:ne
 
   strain(e) = B0' * d; 
   stress(e) = strain(e) * E;
-  N(e) = stress(e) * A;
 
 end
 pause
@@ -211,11 +211,11 @@ stress = zeros(ne, 1);
 B0_sum = zeros(2*size(X,1), 1);
 for e=1:ne
   d = zeros(4, 1);
-  V = [IX(e,1)*2-1 IX(e,1)*2 IX(e,2)*2-1 IX(e,2)*2];
+  edof = [IX(e,1)*2-1 IX(e,1)*2 IX(e,2)*2-1 IX(e,2)*2];
 
   % build the matrix d from D
   for i = 1:4
-    d(i) = D(V(i));
+    d(i) = D(edof(i));
   end
 
   i = IX(e, 1);
@@ -243,13 +243,14 @@ for e=1:ne
   % sum B0 after having transformed it in order to be compliant for the sum
   % with P
   for jj = 1:4
-      B0_sum(V(jj)) = B0_sum(V(jj)) + B0(jj)*N(e)*L0;
+      B0_sum(edof(jj)) = B0_sum(edof(jj)) + B0(jj)*N(e)*L0;
   end
 
 end
 
 % compute the support reactions (N)
 R = B0_sum - P; % 2nnx1 (nn is node number)
+
 pause
 
 return
@@ -265,15 +266,17 @@ h1=0;h2=0;
 clf
 hold on
 box on
+
 for e = 1:ne
-    xx = X(IX(e,1:2),1);
-    yy = X(IX(e,1:2),2);
-    h1=plot(xx,yy,'k:','LineWidth',1.);
+    xx = X(IX(e,1:2),1); % vector of x-coords of the nodes
+    yy = X(IX(e,1:2),2); % vector of y-coords of the nodes 
+    h1=plot(xx,yy,'k:','LineWidth',1.); % Un-deformed structure
     edof = [2*IX(e,1)-1 2*IX(e,1) 2*IX(e,2)-1 2*IX(e,2)];
+
     xx = xx + D(edof(1:2:4));
     yy = yy + D(edof(2:2:4));
     
-    h2=plot(xx,yy,'b','LineWidth',3.5);    
+    h2=plot(xx,yy, 'b', LineWidth',3.5); % Deformed structure
 end
 plotsupports
 plotloads
