@@ -10,7 +10,7 @@ clc
 %--- Input file ----------------------------------------------------------%
 %example1                % Input file
 %test1                   % Input file
-exercise_1_1             % Input file
+test1             % Input file
 
 neqn = size(X,1)*size(X,2);         % Number of equations
 ne = size(IX,1);                    % Number of elements
@@ -80,7 +80,6 @@ P = zeros(columnX * rowX, 1); % assign the memory for P
 for i=1:size(loads,1)
   pos = loads(i, 1)*columnX - (columnX - loads(i, 2));
   P(pos, 1) = loads(i, 3);
-
 end
 pause
 
@@ -96,17 +95,8 @@ function [K]=buildstiff(X,IX,ne,mprop,K);
 K = zeros(2*size(X, 1)); % allocate memory
 
 for e = 1:ne % cycle on the different bar 
-  i = IX(e, 1);
-  j = IX(e, 2);
-  % coordinates of the bar tips
-  xi = X(i, 1); 
-  xj = X(j, 1);
-  yi = X(i, 2);
-  yj = X(j, 2);
-  delta_x = xj - xi;
-  delta_y = yj - yi;
-  % initial length of the bar
-  L0 = sqrt(delta_x^2 + delta_y^2);
+  % compute the bar length
+  [L0, delta_x, delta_y] = length(IX, X, e);
   % displacement vector (4x1)
   B0 = 1/L0^2 * [-delta_x -delta_y delta_x delta_y]';
   
@@ -119,7 +109,7 @@ for e = 1:ne % cycle on the different bar
   k_e = E * A * L0 * B0 * B0'; % 4x4 matrix
   
   % vector of index used for building K
-  edof = [IX(e,1)*2-1 IX(e,1)*2 IX(e,2)*2-1 IX(e,2)*2];
+  [edof] = build_edof(IX, e);
   
   % build K by summing k_e
   for ii = 1:4
@@ -166,22 +156,15 @@ stress = zeros(ne, 1);
 for e=1:ne
   d = zeros(4, 1); % allocate memory for element stiffness matrix
 
-  edof = [IX(e,1)*2-1 IX(e,1)*2 IX(e,2)*2-1 IX(e,2)*2]; % index for buildg K
+ [edof] = build_edof(IX, e); % index for buildg K
 
   % build the matrix d from D
   for i = 1:4
     d(i) = D(edof(i));
   end
 
-  i = IX(e, 1);
-  j = IX(e, 2);
-  xi = X(i, 1);
-  xj = X(j, 1);
-  yi = X(i, 2);
-  yj = X(j, 2);
-  delta_x = xj - xi;
-  delta_y = yj - yi;
-  L0 = sqrt(delta_x^2 + delta_y^2);
+  % compute the bar length
+  [L0, delta_x, delta_y] = length(IX, X, e);
   
   % displacement vector
   B0 = 1/L0^2 * [-delta_x -delta_y delta_x delta_y]';  
@@ -211,22 +194,15 @@ stress = zeros(ne, 1);
 B0_sum = zeros(2*size(X,1), 1);
 for e=1:ne
   d = zeros(4, 1);
-  edof = [IX(e,1)*2-1 IX(e,1)*2 IX(e,2)*2-1 IX(e,2)*2];
+  [edof] = build_edof(IX, e);
 
   % build the matrix d from D
   for i = 1:4
     d(i) = D(edof(i));
   end
 
-  i = IX(e, 1);
-  j = IX(e, 2);
-  xi = X(i, 1);
-  xj = X(j, 1);
-  yi = X(i, 2);
-  yj = X(j, 2);
-  delta_x = xj - xi;
-  delta_y = yj - yi;
-  L0 = sqrt(delta_x^2 + delta_y^2);
+  % compute the bar length
+  [L0, delta_x, delta_y] = length(IX, X, e);
   
   % displacement vector
   B0 = 1/L0^2 * [-delta_x -delta_y delta_x delta_y]';  
@@ -274,7 +250,7 @@ for e = 1:ne
     xx = X(IX(e,1:2),1); % vector of x-coords of the nodes
     yy = X(IX(e,1:2),2); % vector of y-coords of the nodes 
     h1=plot(xx,yy,'k:','LineWidth',1.); % Un-deformed structure
-    edof = [2*IX(e,1)-1 2*IX(e,1) 2*IX(e,2)-1 2*IX(e,2)];
+    [edof] = build_edof(IX, e);
 
     xx = xx + D(edof(1:2:4));
     yy = yy + D(edof(2:2:4));
@@ -298,4 +274,25 @@ legend([h1 h2],{'Undeformed state',...
 axis equal;
 hold off
 
+return
+
+%% Function to compute the length of a bar
+function [L0, delta_x, delta_y] = length(IX, X, e);
+
+  i = IX(e, 1);
+  j = IX(e, 2);
+  xi = X(i, 1);
+  xj = X(j, 1);
+  yi = X(i, 2);
+  yj = X(j, 2);
+  delta_x = xj - xi;
+  delta_y = yj - yi;
+  L0 = sqrt(delta_x^2 + delta_y^2);
+
+return
+
+%% Function to provide the edof vector
+function [edof] = build_edof(IX, e);
+  edof = zeros(4, 1);
+  edof = [IX(e,1)*2-1 IX(e,1)*2 IX(e,2)*2-1 IX(e,2)*2];
 return
