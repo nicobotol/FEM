@@ -10,7 +10,7 @@ clc
 %--- Input file ----------------------------------------------------------%
 %example1                % Input file
 %test1                   % Input file
-comp_7
+group26
 
 neqn = size(X,1)*size(X,2);         % Number of equations
 ne = size(IX,1);                    % Number of elements
@@ -303,6 +303,8 @@ plotloads
 legend([h1 h2],{'Undeformed state',...
                 'Deformed state'})
 
+xline([0.5 1.5], '--m', 'LineWidth', 1.5)
+yline(0.5, '--m', 'LineWidth', 1.5)
 axis equal;
 hold off
 
