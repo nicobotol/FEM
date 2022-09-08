@@ -37,18 +37,19 @@ for i = 1:n_incr
   D0 = D;
   
   for j = 1:i_max
-    [~, ~, ~, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param);
-    [~,R]=enforce(Kmatr,R,bound);       % Enforce boundary conditions
+    [~, ~, ~, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute R
+    [~,R]=enforce(Kmatr,R,bound);       % Enforce boundary conditions on R
     
     if abs(R) <= tollerance * abs(P) % break when we respect the tollerance
       break
     end
 
     [K, epsilon]=buildstiff(X,IX,ne,mprop,Kmatr,D0,rubber_param);    % Build global tangent stiffness matrix
-    %Kmatr
-    [LM, UM] = lu(K);
-    D0 = UM \ (LM\P);
+    %det(K)
+%     [LM, UM] = lu(K);
+%     D0 = UM \ (LM\P);
     [K, ~] = enforce(K,R,bound);
+
     delta_D0 = - K \ R;
     D0 = D0 + delta_D0;
     
@@ -60,6 +61,7 @@ for i = 1:n_incr
   P_plot(i) = P(5);
   D_plot(i) = D(5);
   signorini_plot(i) = signorini(epsilon, rubber_param, 1, IX, mprop);
+  D_plot
 
 end
 
@@ -118,7 +120,7 @@ return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Build global stiffness matrix %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [K, epsilon]=buildstiff(X,IX,ne,mprop,K, D,rubber_param);
+function [K, epsilon]=buildstiff(X,IX,ne,mprop,K,D,rubber_param);
 
 % This subroutine builds the global stiffness matrix from
 % the local element stiffness matrices
