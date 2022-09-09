@@ -1,5 +1,5 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%                        Euler method with one step correction                              %
+%                        Newton Raphson modified method                   %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function fea()
@@ -32,41 +32,37 @@ stress=zeros(ne,1);                     % Element stress vector
 [P_final] = buildload(X,IX,ne,P_final,loads,mprop); % vector of the external loads
 delta_P = P_final / n_incr; % load increment
 
-for i = 1:n_incr
+for n = 1:n_incr
   P = P + delta_P;  % increment the load 
   D0 = D;
-  [Kmatr, epsilon]=buildstiff(X,IX,ne,mprop,Kmatr,D0,rubber_param);    % Build global tangent stiffness matrix
-  [Kmatr, ~] = enforce(Kmatr,R,bound);
-  [LM, UM] = lu(Kmatr);
-  D0 = UM \ (LM\P);
+  [K, epsilon]=buildstiff(X,IX,ne,mprop,K,D0,rubber_param);    % Build global tangent stiffness matrix
+  [K, ~] = enforce(K,R,bound);
+%   [LM, UM] = lu(K);
+%   D0 = UM \ (LM\P);
 
-  for j = 1:i_max
+  for i = 1:i_max
     [~, ~, ~, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param);
-    [~,R]=enforce(Kmatr,R,bound);       % Enforce boundary conditions
+    [~,R]=enforce(K,R,bound);       % Enforce boundary conditions
     
     if abs(R) <= tollerance * abs(P) % break when we respect the tollerance
       break
     end
     
-    delta_D0 = - Kmatr \ R;
+    delta_D0 = - K \ R;
     D0 = D0 + delta_D0;
-%     det(LM)
-%     pause
-  end
-  
-  D = D0;
 
-%   [Kmatr, epsilon]=buildstiff(X,IX,ne,mprop,Kmatr,D,rubber_param);    % Build global tangent stiffness matrix
-%   [Kmatr,delta_P_R]=enforce(Kmatr,delta_P - R,bound);       % Enforce boundary conditions
-%   delta_D = Kmatr \ (delta_P_R);                          % Solve system of equations
-%   D = D + delta_D;
-%   [~, ~, ~, R]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
+  end
+
   
-  P_plot(i) = P(5);
-  D_plot(i) = D(5);
-  signorini_plot(i) = signorini(epsilon, rubber_param, 1, IX, mprop);
+  D = D0; % update D
+
+  P_plot(n) = P(5);
+  D_plot(n) = D(5);
+  signorini_plot(n) = signorini(epsilon, rubber_param, 1, IX, mprop);
 
 end
+
+[strain, stress, N, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute the final support reaction
   
 
 %--- Print the results on the command window -----------------------------%
@@ -82,13 +78,13 @@ stress'
 disp('Strain of the bars')
 strain'
 
-% % Forces on the bars
-% disp('Internal forces on the bar (N)')
-% N
-% 
-% % Support reaction
-% disp('Support reactions forces (N)')
-% R'
+% Forces on the bars
+disp('Internal forces on the bar (N)')
+N
+
+% Support reaction
+disp('Support reactions forces (N)')
+R'
 
 %--- Plot results --------------------------------------------------------%                                                        
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure

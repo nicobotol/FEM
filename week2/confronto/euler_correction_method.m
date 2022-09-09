@@ -19,7 +19,6 @@ disp(['Number of DOF ' sprintf('%d',neqn) ...
 
 %--- Initialize arrays ---------------------------------------------------%
 Kmatr=sparse(neqn,neqn);                % Stiffness matrix
-K=sparse(neqn,neqn);                % Stiffness matrix
 P_final=zeros(neqn,1);                  % Force vector
 P=zeros(neqn,1);                        % Force vector
 D=zeros(neqn,1);                        % Displacement vector
@@ -32,34 +31,13 @@ stress=zeros(ne,1);                     % Element stress vector
 [P_final] = buildload(X,IX,ne,P_final,loads,mprop); % vector of the external loads
 delta_P = P_final / n_incr; % load increment
 
-for i = 1:n_incr
+for i = 1:n_incr;
   P = P + delta_P;  % increment the load 
-  D0 = D;
-  
-  for j = 1:i_max
-    [~, ~, ~, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param);
-    [~,R]=enforce(Kmatr,R,bound);       % Enforce boundary conditions
-    
-    if abs(R) <= tollerance * abs(P) % break when we respect the tollerance
-      break
-    end
-    [Kmatr, epsilon]=buildstiff(X,IX,ne,mprop,Kmatr,D0,rubber_param);    % Build global tangent stiffness matrix
-    [LM, UM] = lu(Kmatr);
-    D0 = UM \ (LM\P);
-    [Kmatr, ~] = enforce(Kmatr,R,bound);
-    delta_D0 = - Kmatr \ R;
-    D0 = D0 + delta_D0;
-    det(LM)
-    pause
-  end
-  
-  D = D0;
-
-%   [Kmatr, epsilon]=buildstiff(X,IX,ne,mprop,Kmatr,D,rubber_param);    % Build global tangent stiffness matrix
-%   [Kmatr,delta_P_R]=enforce(Kmatr,delta_P - R,bound);       % Enforce boundary conditions
-%   delta_D = Kmatr \ (delta_P_R);                          % Solve system of equations
-%   D = D + delta_D;
-%   [~, ~, ~, R]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
+  [Kmatr, epsilon]=buildstiff(X,IX,ne,mprop,Kmatr,D,rubber_param);    % Build global tangent stiffness matrix
+  [Kmatr,delta_P_R]=enforce(Kmatr,delta_P - R,bound);       % Enforce boundary conditions
+  delta_D = Kmatr \ (delta_P_R);                          % Solve system of equations
+  D = D + delta_D;
+  [~, ~, ~, R]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
   
   P_plot(i) = P(5);
   D_plot(i) = D(5);
@@ -258,13 +236,13 @@ for e=1:ne
   % sum B0 after having transformed it in order to be compliant for the sum
   % with P
   for jj = 1:4
-      R_int(edof(jj)) = R_int(edof(jj)) + B0(jj)*N(e)*L0;
+      B0_sum(edof(jj)) = B0_sum(edof(jj)) + B0(jj)*N(e)*L0;
   end
 
 end
 
 % compute the support reactions (N)
-R = R_int - P; % 2nnx1 (nn is node number)
+R = B0_sum - P; % 2nnx1 (nn is node number)
 
 return
 

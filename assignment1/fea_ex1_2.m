@@ -80,7 +80,7 @@ for i=1:size(loads,1)
   pos = loads(i, 1)*columnX - (columnX - loads(i, 2));
   P(pos, 1) = loads(i, 3);
 end
-pause
+
 
 return
 
@@ -118,7 +118,7 @@ for e = 1:ne % cycle on the different bar
   end
 
 end
-pause
+
 return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -177,7 +177,7 @@ for e=1:ne
   stress(e) = strain(e) * E;
 
 end
-pause
+
 
 return
 
@@ -226,7 +226,7 @@ end
 % compute the support reactions (N)
 R = B0_sum - P; % 2nnx1 (nn is node number)
 
-pause
+
 
 return
 

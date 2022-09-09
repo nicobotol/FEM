@@ -1,5 +1,5 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%                        Euler method with one step correction                              %
+%                        Basic Euler method                              %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function fea()
@@ -9,8 +9,8 @@ clc
 
 %--- Input file ----------------------------------------------------------%
 %example1                % Input file
-%test1                   % Input file
-ex_2_1             % Input file
+test1                   % Input file
+%ex_2_1             % Input file
 
 neqn = size(X,1)*size(X,2);         % Number of equations
 ne = size(IX,1);                    % Number of elements
@@ -20,7 +20,7 @@ disp(['Number of DOF ' sprintf('%d',neqn) ...
 %--- Initialize arrays ---------------------------------------------------%
 Kmatr=sparse(neqn,neqn);                % Stiffness matrix
 P_final=zeros(neqn,1);                  % Force vector
-P=zeros(neqn,1);                        % Force vector
+P=zeros(neqn,1);                  % Force vector
 D=zeros(neqn,1);                        % Displacement vector
 R=zeros(neqn,1);                        % Residual vector
 strain=zeros(ne,1);                     % Element strain vector
@@ -34,19 +34,18 @@ delta_P = P_final / n_incr; % load increment
 for i = 1:n_incr;
   P = P + delta_P;  % increment the load 
   [Kmatr, epsilon]=buildstiff(X,IX,ne,mprop,Kmatr,D,rubber_param);    % Build global tangent stiffness matrix
-  [Kmatr,delta_P_R]=enforce(Kmatr,delta_P - R,bound);       % Enforce boundary conditions
-  delta_D = Kmatr \ (delta_P_R);                          % Solve system of equations
+  [Kmatr,delta_P]=enforce(Kmatr,delta_P,bound);       % Enforce boundary conditions
+  delta_D = Kmatr \ delta_P;                          % Solve system of equations
   D = D + delta_D;
-  [~, ~, ~, R]=recover2(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
-  
-  P_plot(i) = P(5);
-  D_plot(i) = D(5);
-  signorini_plot(i) = signorini(epsilon, rubber_param, 1, IX, mprop);
 
+  P_plot = P;
+  D_plot = D;
 end
   
 
 %--- Print the results on the command window -----------------------------%
+[strain,stress, N, R]=recover2(mprop,X,IX,D,ne,strain,stress,P);
+
 % External matrix
 disp('External forces applied (N)')
 P'
@@ -59,25 +58,29 @@ stress'
 disp('Strain of the bars')
 strain'
 
-% % Forces on the bars
-% disp('Internal forces on the bar (N)')
-% N
-% 
-% % Support reaction
-% disp('Support reactions forces (N)')
-% R'
+
+
+% Forces on the bars
+disp('Internal forces on the bar (N)')
+N
+
+% Support reaction
+disp('Support reactions forces (N)')
+R'
 
 %--- Plot results --------------------------------------------------------%                                                        
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
-figure(2)
-plot(D_plot, P_plot, 'o')
-hold on
-plot(D_plot, signorini_plot)
-hold off
-xlabel("Displacement (m)")
-ylabel("Force (N)")
-legend("Structure", "Signorini", 'Location','southeast')
+% figure(2)
+% plot(D_plot, P_plot, 'o')
+% hold on
+% plot(D_plot, signorini_plot)
+% hold off
+% xlabel("Displacement (m)")
+% ylabel("Force (N)")
+% legend("Structure", "Signorini", 'Location','southeast')
+P_plot
+D_plot
 return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -161,22 +164,21 @@ for i=1:size(bound,1)
 end
 
 return
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%% Calculate element strain and stress %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [strain,stress]=recover(mprop,X,IX,D,ne,strain,stress);
+function [strain,stress, N, R]=recover2(mprop,X,IX,D,ne,strain,stress,P);
 
 % This subroutine recovers the element stress, element strain, 
 % and nodal reaction forces
-
-% allocate memory for stress and strain vectors
-strain = zeros(ne, 1); 
+strain = zeros(ne, 1);
 stress = zeros(ne, 1);
-
+B0_sum = zeros(2*size(X,1), 1);
 for e=1:ne
-  d = zeros(4, 1); % allocate memory for element stiffness matrix
-
- [edof] = build_edof(IX, e); % index for buildg K
+  d = zeros(4, 1);
+  [edof] = build_edof(IX, e);
 
   % build the matrix d from D
   for i = 1:4
@@ -190,48 +192,12 @@ for e=1:ne
   B0 = 1/L0^2 * [-delta_x -delta_y delta_x delta_y]';  
   
   % materials properties
-  propno = IX(e, 3);
+  propno = IX(e,3);
   E = mprop(propno, 1);
   A = mprop(propno, 2);
 
   strain(e) = B0' * d; 
   stress(e) = strain(e) * E;
-
-end
-
-
-return
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%% Calculate element strain and stress %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [strain, stress, N, R]=recover2(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
-
-% This subroutine recovers the element stress, element strain, force on each element 
-% and nodal reaction forces
-strain = zeros(ne, 1);
-stress = zeros(ne, 1);
-B0_sum = zeros(2*size(X,1), 1);
-for e=1:ne
-  d = zeros(4, 1);
-  [edof] = build_edof(IX, e);
-
-  % build the matrix d from D
-  d = build_d(D, edof);
-
-  % compute the bar length
-  [L0, delta_x, delta_y] = length(IX, X, e);
-  
-  % displacement vector
-  B0 = 1/L0^2 * [-delta_x -delta_y delta_x delta_y]';  
-  
-  % materials properties
-  propno = IX(e, 3);
-  A = mprop(propno, 2);
-
-
-  strain(e) = B0' * d'; 
-  stress(e) = strain(e) * Et;
   N(e) = stress(e) * A;
   
   % sum B0 after having transformed it in order to be compliant for the sum
@@ -244,6 +210,8 @@ end
 
 % compute the support reactions (N)
 R = B0_sum - P; % 2nnx1 (nn is node number)
+
+
 
 return
 
@@ -321,24 +289,15 @@ function [d] = build_d(D, edof)
   end
 return 
 
-%% Stress
-function [stress] = stress_function(epsilon, rubber_param)
-  c1 = rubber_param(1);
-  c2 = rubber_param(2);
-  c3 = rubber_param(3);
-  c4 = rubber_param(4);
-  
-  stress = c1*((1+c4*epsilon) - (1+c4*epsilon)^(-2)) + c2*(1 - (1+c4*epsilon)^(-3)) + c3 * (1 - 3*(1+c4*epsilon) + (1+c4*epsilon)^3 - 2*(1+c4*epsilon)^(-3) + 3*(1+c4*epsilon)^(-2));
-return
-
 %% Function to Et
 function [Et] = Etfunction(epsilon, rubber_param)
-  c1 = rubber_param(1);
-  c2 = rubber_param(2);
-  c3 = rubber_param(3);
-  c4 = rubber_param(4);
-
-  Et = c4*(c1*(1 + 2*(1 + c4*epsilon)^(-3)) + 3*c2*(1 + c4*epsilon)^(-4) + 3*c3*(-1 + (1 + c4*epsilon)^2 - 2*(1 + c4*epsilon)^(-3) + 2*(1 + c4*epsilon)^(-4)));
+%   c1 = rubber_param(1);
+%   c2 = rubber_param(2);
+%   c3 = rubber_param(3);
+%   c4 = rubber_param(4);
+% 
+%   Et = c4*(c1*(1 + 2*(1 + c4*epsilon)^(-3)) + 3*c2*(1 + c4*epsilon)^(-4) + 3*c3*(-1 + (1 + c4*epsilon)^2 - 2*(1 + c4*epsilon)^(-3) + 2*(1 + c4*epsilon)^(-4)));
+Et = 1.0;
 return
 
 %% Signorini method

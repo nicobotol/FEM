@@ -1,0 +1,30 @@
+Number of DOF 6 Number of elements 3
+External forces applied (N)
+
+ans =
+
+         0         0         0         0         0   -0.0100
+
+Stress on the bars (MPa)
+
+ans =
+
+   -0.0035   -0.0070    0.0041
+
+Strain of the bars
+
+ans =
+
+   -0.0035   -0.0070    0.0041
+
+Internal forces on the bar (N)
+
+N =
+
+   -0.0104   -0.0070    0.0122
+
+Support reactions forces (N)
+
+ans =
+
+    0.0100    0.0100   -0.0100   -0.0000   -0.0000         0

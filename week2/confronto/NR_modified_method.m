@@ -35,35 +35,39 @@ delta_P = P_final / n_incr; % load increment
 for i = 1:n_incr
   P = P + delta_P;  % increment the load 
   D0 = D;
-  
+  [Kmatr, epsilon]=buildstiff(X,IX,ne,mprop,Kmatr,D0,rubber_param);    % Build global tangent stiffness matrix
+  [Kmatr, ~] = enforce(Kmatr,R,bound);
+  [LM, UM] = lu(Kmatr);
+  D0 = UM \ (LM\P);
+
   for j = 1:i_max
-    [~, ~, ~, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute R
-    [~,R]=enforce(Kmatr,R,bound);       % Enforce boundary conditions on R
+    [~, ~, ~, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param);
+    [~,R]=enforce(Kmatr,R,bound);       % Enforce boundary conditions
     
     if abs(R) <= tollerance * abs(P) % break when we respect the tollerance
       break
     end
-
-    [K, epsilon]=buildstiff(X,IX,ne,mprop,Kmatr,D0,rubber_param);    % Build global tangent stiffness matrix
-%     [LM, UM] = lu(K);
-%     D0 = UM \ (LM\P);
-    [K, ~] = enforce(K,R,bound);
-
-    delta_D0 = - K \ R;
+    
+    delta_D0 = - Kmatr \ R;
     D0 = D0 + delta_D0;
- 
+%     det(LM)
+%     pause
   end
   
   D = D0;
+
+%   [Kmatr, epsilon]=buildstiff(X,IX,ne,mprop,Kmatr,D,rubber_param);    % Build global tangent stiffness matrix
+%   [Kmatr,delta_P_R]=enforce(Kmatr,delta_P - R,bound);       % Enforce boundary conditions
+%   delta_D = Kmatr \ (delta_P_R);                          % Solve system of equations
+%   D = D + delta_D;
+%   [~, ~, ~, R]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
   
   P_plot(i) = P(5);
   D_plot(i) = D(5);
   signorini_plot(i) = signorini(epsilon, rubber_param, 1, IX, mprop);
-  D_plot
 
 end
-
-[strain, stress, N, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute the final support reaction
+  
 
 %--- Print the results on the command window -----------------------------%
 % External matrix
@@ -78,13 +82,13 @@ stress'
 disp('Strain of the bars')
 strain'
 
-% Forces on the bars
-disp('Internal forces on the bar (N)')
-N
-
-% Support reaction
-disp('Support reactions forces (N)')
-R'
+% % Forces on the bars
+% disp('Internal forces on the bar (N)')
+% N
+% 
+% % Support reaction
+% disp('Support reactions forces (N)')
+% R'
 
 %--- Plot results --------------------------------------------------------%                                                        
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
@@ -120,7 +124,7 @@ return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Build global stiffness matrix %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [K, epsilon]=buildstiff(X,IX,ne,mprop,K,D,rubber_param);
+function [K, epsilon]=buildstiff(X,IX,ne,mprop,K, D,rubber_param);
 
 % This subroutine builds the global stiffness matrix from
 % the local element stiffness matrices
@@ -230,7 +234,7 @@ function [strain, stress, N, R]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_p
 % and nodal reaction forces
 strain = zeros(ne, 1);
 stress = zeros(ne, 1);
-R_int = zeros(2*size(X,1), 1);
+B0_sum = zeros(2*size(X,1), 1);
 for e=1:ne
   d = zeros(4, 1);
   [edof] = build_edof(IX, e);
@@ -255,13 +259,13 @@ for e=1:ne
   % sum B0 after having transformed it in order to be compliant for the sum
   % with P
   for jj = 1:4
-      R_int(edof(jj)) = R_int(edof(jj)) + B0(jj)*N(e)*L0;
+      B0_sum(edof(jj)) = B0_sum(edof(jj)) + B0(jj)*N(e)*L0;
   end
 
 end
 
 % compute the support reactions (N)
-R = R_int - P; % 2nnx1 (nn is node number)
+R = B0_sum - P; % 2nnx1 (nn is node number)
 
 return
 
