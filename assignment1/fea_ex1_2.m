@@ -48,6 +48,10 @@ P'
 disp('Stress on the bars (MPa)')
 stress'
 
+% Displacement
+disp('Displacement (m)')
+D'
+
 % Strain
 disp('Strain of the bars')
 strain'
@@ -237,13 +241,18 @@ function PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)
 % This subroutine plots the undeformed and deformed structure
 
 h1=0;h2=0;
+
+%font size
+font_size = 20;
+
 % Plotting Un-Deformed and Deformed Structure
+figure_truss_structure= figure('Position', get(0, 'Screensize'));
 clf
 hold on
 box on
 
 colors = ['b', 'r', 'g']; % vector of colors for the structure
-fake_zero = 1e-8; % fake zero for tension sign decision
+fake_zero = max(abs(stress)) / 1e5; % fake zero for tension sign decision
 
 for e = 1:ne
     xx = X(IX(e,1:2),1); % vector of x-coords of the nodes
@@ -261,17 +270,45 @@ for e = 1:ne
       col = colors(2);
     else col = colors(3);  % un-loaded
     end 
-
-    h2=plot(xx,yy, col,'LineWidth',3.5); % Deformed structure
+    
+    if e == 34 % unloaded
+      xx1=xx;
+      yy1 = yy;
+      col1=col;
+    elseif e == 4 % compression
+      xx4=xx;
+      yy4 = yy;
+      col4=col;
+    elseif e == 5 % tensile
+      xx3=xx;
+      yy3 = yy;
+      col3=col;
+    end
+    
+    if e ~= 34
+      h2=plot(xx,yy, col,'LineWidth',3.5); % Deformed structure
+    else
+      h2=plot(xx,yy, 'k','LineWidth',3.5); % Deformed structure
+    end
 end
 plotsupports
 plotloads
 
-legend([h1 h2],{'Undeformed state',...
-                'Deformed state'})
+h_u=plot(xx1,yy1,col1,'LineWidth',3.5);
+h_c=plot(xx4,yy4,col4,'LineWidth',3.5);
+h_t=plot(xx3,yy3,col3,'LineWidth',3.5);
+
+legend([h1 h2 h_u h_c h_t],{'Undeformed state','Deformed state','Unloaded','Compressed','Tensioned'})
 
 axis equal;
 hold off
+
+title('Truss structure in deformed and undeformed state')
+xlabel('(m)')
+ylabel('(m)')
+
+set(gca, 'FontSize', font_size)
+saveas(figure_truss_structure, 'C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\truss.png','png');
 
 return
 

@@ -1,7 +1,7 @@
 % Created with:       FlExtract v1.13
 % Element type:       truss
 % Number of nodes:    19
-% Number of elements: 42
+% Number of elements: 34
 
 clear all;
 
@@ -30,43 +30,35 @@ X = [
 % Element connectivity: node1_id, node2_id, material_id
 IX = [
 2	1	1
-4	1	1
 3	1	1
 4	2	1
 3	2	1
 4	3	1
-6	3	1
 5	3	1
 6	4	1
 5	4	1
 6	5	1
-8	5	1
 7	5	1
 8	6	1
 7	6	1
 8	7	1
-11	7	1
 10	7	1
 11	8	1
 10	8	1
 11	9	1
 11	10	1
-13	10	1
 12	10	1
 13	11	1
 12	11	1
 13	12	1
-15	12	1
 14	12	1
 15	13	1
 14	13	1
 15	14	1
-17	14	1
 16	14	1
 17	15	1
 16	15	1
 17	16	1
-19	16	1
 18	16	1
 19	17	1
 18	17	1
@@ -74,7 +66,7 @@ IX = [
 ];
 % Element properties: Young's modulus, area
 mprop = [
-70e9	0.0002
+7e+010	0.0002
 ];
 % Nodal diplacements: node_id, degree of freedom (1 - x, 2 - y), displacement
 bound = [
@@ -85,7 +77,7 @@ bound = [
 ];
 % Nodal loads: node_id, degree of freedom (1 - x, 2 - y), load
 loads = [
-18	2	-15
+18	2	-15000
 ];
 % Control parameters
 plotdof = 2;
