@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Cursors/cur_aim.png</file>
+    </qresource>
+</RCC>

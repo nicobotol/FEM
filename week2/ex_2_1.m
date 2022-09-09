@@ -7,7 +7,7 @@ clear all;
 
 A = 2;  % cross section
 P = 200;  % externla load
-n_incr = 20;  % number of increment
+incr_vector = [5, 9];  % number of increment
 i_max = 100; % maximum number of iterations
 tollerance = 1e-8; % tollerance to stop the integration
 

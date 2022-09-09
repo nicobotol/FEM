@@ -244,7 +244,7 @@ hold on
 box on
 
 colors = ['b', 'r', 'g']; % vector of colors for the structure
-fake_zero = 1e-8; % fake zero for tension sign decision
+fake_zero = max(abs(stress)) / 1e5; % fake zero for tension sign decision
 
 for e = 1:ne
     xx = X(IX(e,1:2),1); % vector of x-coords of the nodes

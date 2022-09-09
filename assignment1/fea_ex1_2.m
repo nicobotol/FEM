@@ -242,9 +242,6 @@ function PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)
 
 h1=0;h2=0;
 
-%font size
-font_size = 20;
-
 % Plotting Un-Deformed and Deformed Structure
 figure_truss_structure= figure('Position', get(0, 'Screensize'));
 clf
@@ -302,12 +299,22 @@ legend([h1 h2 h_u h_c h_t],{'Undeformed state','Deformed state','Unloaded','Comp
 
 axis equal;
 hold off
-
+text_size = 30;
 title('Truss structure in deformed and undeformed state')
-xlabel('(m)')
-ylabel('(m)')
+xlabel('x [m]')
+ylabel('y [m]')
+text(0,0.6,'A','FontSize', text_size)
+text(0.5,0.6,'B','FontSize', text_size)
+text(0.5,-0.1,'E','FontSize', text_size)
+text(1,-0.1,'F','FontSize', text_size)
+text(2.05,0.6,'C','FontSize', text_size)
+text(1.6,1,'D','FontSize', text_size)
+text(3.85,-0.15,'G','FontSize', text_size)
+text(0,-0.1,'H','FontSize', text_size)
+text(4.05,0.5,'I','FontSize', text_size)
+text(1,0.6,'J','FontSize', text_size)
 
-set(gca, 'FontSize', font_size)
+set(gca,'FontAngle','oblique','FontSize', text_size)
 saveas(figure_truss_structure, 'C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\truss.png','png');
 
 return

@@ -24,79 +24,96 @@ P_final=zeros(neqn,1);                  % Force vector
 P=zeros(neqn,1);                        % Force vector
 D=zeros(neqn,1);                        % Displacement vector
 R=zeros(neqn,1);                        % Residual vector
-strain=zeros(ne,1);                     % Element strain vector
-stress=zeros(ne,1);                     % Element stress vector
+strain=zeros(ne,size(incr_vector, 2));                     % Element strain vector
+stress=zeros(ne,size(incr_vector, 2));                     % Element stress vector
 
 %--- Calculate displacements ---------------------------------------------%
 
 [P_final] = buildload(X,IX,ne,P_final,loads,mprop); % vector of the external loads
-delta_P = P_final / n_incr; % load increment
 
-for i = 1:n_incr
-  P = P + delta_P;  % increment the load 
-  D0 = D;
-  
-  for j = 1:i_max
-    [~, ~, ~, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute R
-    [~,R]=enforce(Kmatr,R,bound);       % Enforce boundary conditions on R
-    
-    if abs(R) <= tollerance * abs(P) % break when we respect the tollerance
-      break
-    end
-
-    [K, epsilon]=buildstiff(X,IX,ne,mprop,Kmatr,D0,rubber_param);    % Build global tangent stiffness matrix
-%     [LM, UM] = lu(K);
-%     D0 = UM \ (LM\P);
-    [K, ~] = enforce(K,R,bound);
-
-    delta_D0 = - K \ R;
-    D0 = D0 + delta_D0;
+for j = 1:size(incr_vector,2)
  
+  % choose the step size
+  n_incr = incr_vector(j);
+
+  % load increment
+  delta_P = P_final / n_incr; 
+  
+  % Initialize arrays
+  P=zeros(neqn,1);                        % Force vector
+  D0=zeros(neqn,1);                        % Displacement vector
+  D=zeros(neqn,1);                        % Displacement vector
+
+  for n = 1:n_incr  % cycle to the number of increments
+    P = P + delta_P;  % increment the load 
+    D0 = D;
+    
+    for i = 1:i_max
+      [~, ~, ~, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute R
+      [~,R]=enforce(Kmatr,R,bound);       % Enforce boundary conditions on R
+      
+      if abs(R) <= tollerance * abs(P) % break when we respect the tollerance
+        break
+      end
+  
+      [K, epsilon]=buildstiff(X,IX,ne,mprop,Kmatr,D0,rubber_param);    % Build global tangent stiffness matrix
+  %     [LM, UM] = lu(K);
+  %     D0 = UM \ (LM\P);
+      [K, ~] = enforce(K,R,bound);
+  
+      delta_D0 = - K \ R;
+      D0 = D0 + delta_D0;
+   
+    end
+    
+    D = D0;
+    
+    P_plot(n, j) = P(5);
+    D_plot(n, j) = D(5);
+    signorini_plot(n, j) = signorini(epsilon, rubber_param, A, IX, mprop);
+  
   end
   
-  D = D0;
-  
-  P_plot(i) = P(5);
-  D_plot(i) = D(5);
-  signorini_plot(i) = signorini(epsilon, rubber_param, 1, IX, mprop);
-  D_plot
-
+  %[strain(:,j), stress(:,j), N(:,j), R(:,j)]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute the final support reaction
 end
 
-[strain, stress, N, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute the final support reaction
-
 %--- Print the results on the command window -----------------------------%
-% External matrix
-disp('External forces applied (N)')
-P'
+% % External matrix
+% disp('External forces applied (N)')
+% P'
 
-% Stress
-disp('Stress on the bars (MPa)')
-stress'
-
-% Strain
-disp('Strain of the bars')
-strain'
-
-% Forces on the bars
-disp('Internal forces on the bar (N)')
-N
-
-% Support reaction
-disp('Support reactions forces (N)')
-R'
+% % Stress
+% disp('Stress on the bars (MPa)')
+% stress'
+% 
+% % Strain
+% disp('Strain of the bars')
+% strain'
+% 
+% % Forces on the bars
+% disp('Internal forces on the bar (N)')
+% N
+% 
+% % Support reaction
+% disp('Support reactions forces (N)')
+% R'
 
 %--- Plot results --------------------------------------------------------%                                                        
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
 figure(2)
-plot(D_plot, P_plot, 'o')
-hold on
-plot(D_plot, signorini_plot)
-hold off
+for j=1:size(incr_vector,2)
+  plot(D_plot(:,j), P_plot(:,j), 'o', 'LineWidth', 2.5)
+  % build a vector with the name 
+  legend_name(j) = strcat("Number of increment n = ", num2str(incr_vector(j)));
+  hold on
+end
+legend_name(size(incr_vector,2) + 1) = "Signorini";
+plot(D_plot(:,end), signorini_plot(:,end))
 xlabel("Displacement (m)")
 ylabel("Force (N)")
-legend("Structure", "Signorini", 'Location','southeast')
+legend(legend_name,'Location','southeast')
+hold off
 return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -360,13 +377,11 @@ function [Et] = Etfunction(epsilon, rubber_param)
 return
 
 %% Signorini method
-function [sigma] = signorini(epsilon, rubber_param, e, IX, mprop)
+function [force] = signorini(epsilon, rubber_param, A, IX, mprop)
   c1 = rubber_param(1);
   c2 = rubber_param(2);
   c3 = rubber_param(3);
   c4 = rubber_param(4);
 
-  propno = IX(e, 3);
-  A = mprop(propno, 2);
-  sigma =A *( c1*((1+c4*epsilon) - (1+c4*epsilon)^(-2)) + c2*(1 - (1+c4*epsilon)^(-3)) + c3 * (1 - 3*(1+c4*epsilon) + (1+c4*epsilon)^3 - 2*(1+c4*epsilon)^(-3) + 3*(1+c4*epsilon)^(-2)));
+  force =A *( c1*((1+c4*epsilon) - (1+c4*epsilon)^(-2)) + c2*(1 - (1+c4*epsilon)^(-3)) + c3 * (1 - 3*(1+c4*epsilon) + (1+c4*epsilon)^3 - 2*(1+c4*epsilon)^(-3) + 3*(1+c4*epsilon)^(-2)));
 return
