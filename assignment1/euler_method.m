@@ -8,8 +8,6 @@ close all
 clc
 
 %--- Input file ----------------------------------------------------------%
-%example1                % Input file
-%test1                   % Input file
 TrussExercise2_2022             % Input file
 
 neqn = size(X,1)*size(X,2);         % Number of equations
@@ -18,35 +16,48 @@ disp(['Number of DOF ' sprintf('%d',neqn) ...
     ' Number of elements ' sprintf('%d',ne)]);
 
 %--- Initialize arrays ---------------------------------------------------%
-Kmatr=sparse(neqn,neqn);                % Stiffness matrix
+K=sparse(neqn,neqn);                % Stiffness matrix
 P_final=zeros(neqn,1);                  % Force vector
-P=zeros(neqn,1);                  % Force vector
-D=zeros(neqn,1);                        % Displacement vector
 R=zeros(neqn,1);                        % Residual vector
 strain=zeros(ne,1);                     % Element strain vector
 stress=zeros(ne,1);                     % Element stress vector
+P_plot=zeros(max(incr_vector), size(incr_vector, 2));
+D_plot=zeros(max(incr_vector), size(incr_vector, 2));
+signorini_plot=zeros(max(incr_vector), size(incr_vector, 2));
 
 %--- Calculate displacements ---------------------------------------------%
-rubber_param = [mprop(3) mprop(4) mprop(5) mprop(6)];
 
 [P_final] = buildload(X,IX,ne,P_final,loads,mprop); % vector of the external loads
-delta_P = P_final / nincr; % load increment
 
-for n = 1:nincr
-  P = P + delta_P;  % increment the load 
-  [Kmatr, epsilon]=buildstiff(X,IX,ne,mprop,Kmatr,D,rubber_param);    % Build global tangent stiffness matrix
-  [Kmatr,delta_P]=enforce(Kmatr,delta_P,bound);       % Enforce boundary conditions
-  delta_D = Kmatr \ delta_P;                          % Solve system of equations
-  D = D + delta_D;
+rubber_param = [mprop(3) mprop(4) mprop(5) mprop(6)]; % coefficients for the nonlinear material behaviour
 
-  P_plot(n) = P(48);
-  D_plot(n) = D(48);
-  signorini_plot(n) = signorini(epsilon, rubber_param, 1, IX, mprop);
+for j = 1:size(incr_vector, 2)  % cycle over the different # of load incr
 
+  %  number of increments
+  nincr = incr_vector(j);
+  
+  % load increment
+  delta_P = P_final / nincr; 
+  
+  % Initialize arrays
+  P=zeros(neqn,1);                        % Force vector
+  D=zeros(neqn,1);                        % Displacement vector
+
+  for n = 1:nincr
+    P = P + delta_P;  % increment the load 
+    [K, epsilon]=buildstiff(X,IX,ne,mprop,K,D,rubber_param);    % Build global tangent stiffness matrix
+    [K,delta_P]=enforce(K,delta_P,bound);       % Enforce boundary conditions
+    delta_D = K \ delta_P;                          % Solve system of equations
+    D = D + delta_D;
+  
+    P_plot(n, j) = P(48);
+    D_plot(n, j) = D(48);
+    signorini_plot(n, j) = signorini(epsilon, rubber_param, 1, IX, mprop);
+  
+  end
+
+  % [strain, stress, ~, ~]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
 end
-
-[strain, stress, ~, ~]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
-
 %--- Print the results on the command window -----------------------------%
 % % External matrix
 % disp('External forces applied (N)')
@@ -72,13 +83,19 @@ end
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
 figure(2)
-plot(D_plot, P_plot, 'o')
-hold on
-plot(D_plot, signorini_plot)
-hold off
+legend_name = strings(1, size(incr_vector,2) + 1);
+for j=1:size(incr_vector,2)
+  plot(D_plot(:,j), P_plot(:,j), 'o', 'LineWidth', 2.5)
+  % build a vector with the name 
+  legend_name(j) = strcat("Number of increment n = ", num2str(incr_vector(j)));
+  hold on
+end
+legend_name(size(incr_vector,2) + 1) = "Signorini";
+plot(D_plot(:,end), signorini_plot(:,end))
 xlabel("Displacement (m)")
 ylabel("Force (N)")
-legend("Structure", "Signorini", 'Location','southeast')
+legend(legend_name,'Location','southeast')
+hold off
 return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -165,48 +182,48 @@ return
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%% Calculate element strain and stress %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [strain,stress]=recover(mprop,X,IX,D,ne,strain,stress);
-
-% This subroutine recovers the element stress, element strain, 
-% and nodal reaction forces
-
-% allocate memory for stress and strain vectors
-strain = zeros(ne, 1); 
-stress = zeros(ne, 1);
-
-for e=1:ne
-  d = zeros(4, 1); % allocate memory for element stiffness matrix
-
- [edof] = build_edof(IX, e); % index for buildg K
-
-  % build the matrix d from D
-  for i = 1:4
-    d(i) = D(edof(i));
-  end
-
-  % compute the bar length
-  [L0, delta_x, delta_y] = length(IX, X, e);
-  
-  % displacement vector
-  B0 = 1/L0^2 * [-delta_x -delta_y delta_x delta_y]';  
-  
-  % materials properties
-  propno = IX(e, 3);
-  E = mprop(propno, 1);
-  A = mprop(propno, 2);
-
-  strain(e) = B0' * d; 
-  stress(e) = strain(e) * E;
-
-end
-
-
-return
+% function [strain,stress]=recover(mprop,X,IX,D,ne,strain,stress);
+% 
+% % This subroutine recovers the element stress, element strain, 
+% % and nodal reaction forces
+% 
+% % allocate memory for stress and strain vectors
+% strain = zeros(ne, 1); 
+% stress = zeros(ne, 1);
+% 
+% for e=1:ne
+%   d = zeros(4, 1); % allocate memory for element stiffness matrix
+% 
+%  [edof] = build_edof(IX, e); % index for buildg K
+% 
+%   % build the matrix d from D
+%   for i = 1:4
+%     d(i) = D(edof(i));
+%   end
+% 
+%   % compute the bar length
+%   [L0, delta_x, delta_y] = length(IX, X, e);
+%   
+%   % displacement vector
+%   B0 = 1/L0^2 * [-delta_x -delta_y delta_x delta_y]';  
+%   
+%   % materials properties
+%   propno = IX(e, 3);
+%   E = mprop(propno, 1);
+%   A = mprop(propno, 2);
+% 
+%   strain(e) = B0' * d; 
+%   stress(e) = strain(e) * E;
+% 
+% end
+% 
+% 
+% return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%% Calculate element strain and stress %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [strain,stress, N, R]=recover2(mprop,X,IX,D,ne,strain,stress,P);
+function [strain,stress, N, R]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
 
 % This subroutine recovers the element stress, element strain, 
 % and nodal reaction forces

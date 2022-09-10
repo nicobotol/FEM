@@ -18,47 +18,61 @@ disp(['Number of DOF ' sprintf('%d',neqn) ...
     ' Number of elements ' sprintf('%d',ne)]);
 
 %--- Initialize arrays ---------------------------------------------------%
-Kmatr=sparse(neqn,neqn);                % Stiffness matrix
+K=sparse(neqn,neqn);                % Stiffness matrix
 P_final=zeros(neqn,1);                  % Force vector
-P=zeros(neqn,1);                        % Force vector
-D=zeros(neqn,1);                        % Displacement vector
 R=zeros(neqn,1);                        % Residual vector
 strain=zeros(ne,1);                     % Element strain vector
 stress=zeros(ne,1);                     % Element stress vector
+P_plot=zeros(max(incr_vector), size(incr_vector, 2));
+D_plot=zeros(max(incr_vector), size(incr_vector, 2));
+signorini_plot=zeros(max(incr_vector), size(incr_vector, 2));
 
 %--- Calculate displacements ---------------------------------------------%
 
-rubber_param = [mprop(3) mprop(4) mprop(5) mprop(6)];
 [P_final] = buildload(X,IX,ne,P_final,loads,mprop); % vector of the external loads
-delta_P = P_final / nincr; % load increment
 
-for i = 1:nincr;
-  P = P + delta_P;  % increment the load 
-  [Kmatr, epsilon]=buildstiff(X,IX,ne,mprop,Kmatr,D,rubber_param);    % Build global tangent stiffness matrix
-  [Kmatr,delta_P_R]=enforce(Kmatr,delta_P - R,bound);       % Enforce boundary conditions
-  delta_D = Kmatr \ (delta_P_R);                          % Solve system of equations
-  D = D + delta_D;
-  [~, ~, ~, R]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
+rubber_param = [mprop(3) mprop(4) mprop(5) mprop(6)]; % coefficients for the nonlinear material behaviour
+
+for j=1:size(incr_vector, 2) % cycle over the different # of load incr
   
-  P_plot(i) = P(48);
-  D_plot(i) = D(48);
-  signorini_plot(i) = signorini(epsilon, rubber_param, 1, IX, mprop);
+  % number of increments
+  nincr = incr_vector(j);
+  
+  % load increment
+  delta_P = P_final / nincr; 
+  
+   % Initialize arrays
+  P=zeros(neqn,1);                        % Force vector
+  D=zeros(neqn,1);                        % Displacement vector
+
+  for n = 1:nincr
+    P = P + delta_P;  % increment the load 
+    [K, epsilon]=buildstiff(X,IX,ne,mprop,K,D,rubber_param);    % Build global tangent stiffness matrix
+    [K,delta_P_R]=enforce(K,delta_P - R,bound);       % Enforce boundary conditions
+    delta_D = K \ (delta_P_R);                          % Solve system of equations
+    D = D + delta_D;
+    [~, ~, ~, R]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
+    
+    P_plot(n, j) = P(48);
+    D_plot(n, j) = D(48);
+    signorini_plot(n, j) = signorini(epsilon, rubber_param, 1, IX, mprop);
+  
+  end
+  % [strain, stress, ~, ~]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
 
 end
-[strain, stress, ~, ~]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
-
 %--- Print the results on the command window -----------------------------%
-% External matrix
-disp('External forces applied (N)')
-P'
-
-% Stress
-disp('Stress on the bars (MPa)')
-stress'
-
-% Strain
-disp('Strain of the bars')
-strain'
+% % External matrix
+% disp('External forces applied (N)')
+% P'
+% 
+% % Stress
+% disp('Stress on the bars (MPa)')
+% stress'
+% 
+% % Strain
+% disp('Strain of the bars')
+% strain'
 
 % % Forces on the bars
 % disp('Internal forces on the bar (N)')
@@ -72,13 +86,19 @@ strain'
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
 figure(2)
-plot(D_plot, P_plot, 'o')
-hold on
-plot(D_plot, signorini_plot)
-hold off
+legend_name = strings(1, size(incr_vector,2) + 1);
+for j=1:size(incr_vector,2)
+  plot(D_plot(:,j), P_plot(:,j), 'o', 'LineWidth', 2.5)
+  % build a vector with the name 
+  legend_name(j) = strcat("Number of increment n = ", num2str(incr_vector(j)));
+  hold on
+end
+legend_name(size(incr_vector,2) + 1) = "Signorini";
+plot(D_plot(:,end), signorini_plot(:,end))
 xlabel("Displacement (m)")
 ylabel("Force (N)")
-legend("Structure", "Signorini", 'Location','southeast')
+legend(legend_name,'Location','southeast')
+hold off
 return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

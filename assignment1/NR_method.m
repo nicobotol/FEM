@@ -8,8 +8,6 @@ close all
 clc
 
 %--- Input file ----------------------------------------------------------%
-%example1                % Input file
-%test1                   % Input file
 TrussExercise2_2022             % Input file
 
 neqn = size(X,1)*size(X,2);         % Number of equations
@@ -18,23 +16,24 @@ disp(['Number of DOF ' sprintf('%d',neqn) ...
     ' Number of elements ' sprintf('%d',ne)]);
 
 %--- Initialize arrays ---------------------------------------------------%
-Kmatr=sparse(neqn,neqn);                % Stiffness matrix
 K=sparse(neqn,neqn);                % Stiffness matrix
 P_final=zeros(neqn,1);                  % Force vector
-P=zeros(neqn,1);                        % Force vector
-D=zeros(neqn,1);                        % Displacement vector
 R=zeros(neqn,1);                        % Residual vector
 strain=zeros(ne,size(incr_vector, 2));                     % Element strain vector
 stress=zeros(ne,size(incr_vector, 2));                     % Element stress vector
+P_plot=zeros(max(incr_vector), size(incr_vector, 2));
+D_plot=zeros(max(incr_vector), size(incr_vector, 2));
+signorini_plot=zeros(max(incr_vector), size(incr_vector, 2));
 
 %--- Calculate displacements ---------------------------------------------%
 
 [P_final] = buildload(X,IX,ne,P_final,loads,mprop); % vector of the external loads
-rubber_param = [mprop(3) mprop(4) mprop(5) mprop(6)];
 
-for j = 1:size(incr_vector,2)
+rubber_param = [mprop(3) mprop(4) mprop(5) mprop(6)]; % coefficients for the nonlinear material behaviour
+
+for j = 1:size(incr_vector,2) % cycle over the different # of load incr
  
-  % choose the step size
+  % number of increments
   nincr = incr_vector(j);
 
   % load increment
@@ -51,24 +50,32 @@ for j = 1:size(incr_vector,2)
     
     for i = 1:i_max
       [~, ~, ~, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute R
-      [~,R]=enforce(Kmatr,R,bound);       % Enforce boundary conditions on R
+      [~,R]=enforce(K,R,bound);       % Enforce boundary conditions on R
       
       if abs(R) <= eSTOP * abs(P) % break when we respect the eSTOP
         break
       end
   
-      [K, epsilon]=buildstiff(X,IX,ne,mprop,Kmatr,D0,rubber_param);    % Build global tangent stiffness matrix
-  %     [LM, UM] = lu(K);
-  %     D0 = UM \ (LM\P);
-      [K, ~] = enforce(K,R,bound);
-  
+      [K, epsilon]=buildstiff(X,IX,ne,mprop,K,D0,rubber_param);    % Build global tangent stiffness matrix
+
+%       [LM, UM] = lu(K);
+%       D0 = UM \ (LM\P);
+      [K, ~] = enforce(K,R,bound);   
       delta_D0 = - K \ R;
+
+      %%%
+%       [LM, UM, P_permutation] = lu(K);  
+%       [K, ~] = enforce(K,R,bound);
+%       delta_D0 = - UM \ (LM \ P_permutation*R);
+      %%%
+
       D0 = D0 + delta_D0;
    
     end
     
     D = D0;
     
+    % save data of the point of interest
     P_plot(n, j) = P(48);
     D_plot(n, j) = D(48);
     signorini_plot(n, j) = signorini(epsilon, rubber_param, 1, IX, mprop);
@@ -103,6 +110,7 @@ end
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
 figure(2)
+legend_name = strings(1, size(incr_vector,2) + 1);
 for j=1:size(incr_vector,2)
   plot(D_plot(:,j), P_plot(:,j), 'o', 'LineWidth', 2.5)
   % build a vector with the name 

@@ -26,6 +26,9 @@ D=zeros(neqn,1);                        % Displacement vector
 R=zeros(neqn,1);                        % Residual vector
 strain=zeros(ne,1);                     % Element strain vector
 stress=zeros(ne,1);                     % Element stress vector
+P_plot=zeros(max(incr_vector), size(incr_vector, 2));
+D_plot=zeros(max(incr_vector), size(incr_vector, 2));
+signorini_plot=zeros(max(incr_vector), size(incr_vector, 2));
 
 %--- Calculate displacements ---------------------------------------------%
 
@@ -53,6 +56,7 @@ for j = 1:size(incr_vector,2)
 %     D0 = UM \ (LM\P);
 %     [LM, UM] = lu(K);
 %     delta_D0 = UM \ (LM\R); 
+    delta_0 = K \ R;
     for i = 1:i_max
       [~, ~, ~, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param);
       [~,R]=enforce(K,R,bound);       % Enforce boundary conditions
@@ -103,6 +107,7 @@ end
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
 figure(2)
+legend_name = strings(1, size(incr_vector,2) + 1);
 for j=1:size(incr_vector,2)
   plot(D_plot(:,j), P_plot(:,j), 'o', 'LineWidth', 2.5)
   % build a vector with the name 
@@ -138,7 +143,7 @@ return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Build global stiffness matrix %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [K, epsilon]=buildstiff(X,IX,ne,mprop,K, D,rubber_param);
+function [K, epsilon]=buildstiff(X,IX,ne,mprop,K,D,rubber_param);
 
 % This subroutine builds the global stiffness matrix from
 % the local element stiffness matrices
@@ -181,7 +186,7 @@ return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Enforce boundary conditions %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [K,P]=enforce(K,P,bound);
+function [K,P]=enforce(K,P,bound)
 
 % This subroutine enforces the support boundary conditions
 
