@@ -83,6 +83,9 @@ end
 % R'
 
 %--- Plot results --------------------------------------------------------%                                                        
+
+save('euler_correction.mat', 'P_plot', 'D_plot');
+
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
 figure(2)

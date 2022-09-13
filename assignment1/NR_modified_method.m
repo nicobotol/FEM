@@ -111,6 +111,8 @@ end
 %--- Plot results --------------------------------------------------------%                                                        
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
+save('NR_modified.mat', 'P_plot', 'D_plot');
+
 figure(2)
 legend_name = strings(1, size(incr_vector,2) + 1);
 for j=1:size(incr_vector,2)
@@ -258,7 +260,7 @@ function [strain, stress, N, R]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_p
 % and nodal reaction forces
 strain = zeros(ne, 1);
 stress = zeros(ne, 1);
-B0_sum = zeros(2*size(X,1), 1);
+R_int = zeros(2*size(X,1), 1);
 for e=1:ne
   d = zeros(4, 1);
   [edof] = build_edof(IX, e);
@@ -283,13 +285,13 @@ for e=1:ne
   % sum B0 after having transformed it in order to be compliant for the sum
   % with P
   for jj = 1:4
-      B0_sum(edof(jj)) = B0_sum(edof(jj)) + B0(jj)*N(e)*L0;
+      R_int(edof(jj)) = R_int(edof(jj)) + B0(jj)*N(e)*L0;
   end
 
 end
 
 % compute the support reactions (N)
-R = B0_sum - P; % 2nnx1 (nn is node number)
+R = R_int - P; % 2nnx1 (nn is node number)
 
 return
 

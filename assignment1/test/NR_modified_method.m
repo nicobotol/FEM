@@ -1,5 +1,5 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%                        Euler method with one step correction                              %
+%                        Newton Raphson modified method                   %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function fea()
@@ -8,7 +8,10 @@ close all
 clc
 
 %--- Input file ----------------------------------------------------------%
-TrussExercise2_2022             % Input file
+%example1                % Input file
+%test1                   % Input file
+ex_2_1             % Input file
+%ex_2_1
 
 neqn = size(X,1)*size(X,2);         % Number of equations
 ne = size(IX,1);                    % Number of elements
@@ -16,11 +19,14 @@ disp(['Number of DOF ' sprintf('%d',neqn) ...
     ' Number of elements ' sprintf('%d',ne)]);
 
 %--- Initialize arrays ---------------------------------------------------%
+Kmatr=sparse(neqn,neqn);                % Stiffness matrix
 K=sparse(neqn,neqn);                % Stiffness matrix
 P_final=zeros(neqn,1);                  % Force vector
+P=zeros(neqn,1);                        % Force vector
+D=zeros(neqn,1);                        % Displacement vector
 R=zeros(neqn,1);                        % Residual vector
-strain=zeros(ne,size(incr_vector, 2));                     % Element strain vector
-stress=zeros(ne,size(incr_vector, 2));                     % Element stress vector
+strain=zeros(ne,1);                     % Element strain vector
+stress=zeros(ne,1);                     % Element stress vector
 P_plot=zeros(max(incr_vector), size(incr_vector, 2));
 D_plot=zeros(max(incr_vector), size(incr_vector, 2));
 signorini_plot=zeros(max(incr_vector), size(incr_vector, 2));
@@ -28,14 +34,12 @@ signorini_plot=zeros(max(incr_vector), size(incr_vector, 2));
 %--- Calculate displacements ---------------------------------------------%
 
 [P_final] = buildload(X,IX,ne,P_final,loads,mprop); % vector of the external loads
+rubber_param = [mprop(3) mprop(4) mprop(5) mprop(6)];
 
-rubber_param = [mprop(3) mprop(4) mprop(5) mprop(6)]; % coefficients for the nonlinear material behaviour
-
-for j = 1:size(incr_vector,2) % cycle over the different # of load incr
- 
-  % number of increments
-  nincr = incr_vector(j);
-
+for j = 1:size(incr_vector,2) % cycle over the different increment
+  % choose the step size
+  nincr = incr_vector(1, j);
+  
   % load increment
   delta_P = P_final / nincr; 
   
@@ -44,52 +48,50 @@ for j = 1:size(incr_vector,2) % cycle over the different # of load incr
   D0=zeros(neqn,1);                        % Displacement vector
   D=zeros(neqn,1);                        % Displacement vector
 
-  for n = 1:nincr  % cycle to the number of increments
+  for n = 1:nincr % cycle the desired number of icrement
     P = P + delta_P;  % increment the load 
     D0 = D;
-    
+    [K, epsilon]=buildstiff(X,IX,ne,mprop,K,D0,rubber_param);    % Build global tangent stiffness matrix
+    [K, ~] = enforce(K,R,bound);
+    [LM, UM] = lu(K);
+%     D0 = UM \ (LM\P);
+%     [LM, UM] = lu(K);
+%     delta_D0 = UM \ (LM\R); 
+%     delta_0 = K \ R;
     for i = 1:i_max
-      [~, ~, ~, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute R
-      [~,R]=enforce(K,R,bound);       % Enforce boundary conditions on R
+      [~, ~, ~, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param);
+      [~,R]=enforce(K,R,bound);       % Enforce boundary conditions
       
       if norm(R) <= eSTOP * Pfinal % break when we respect the eSTOP
         break
       end
-  
-      [K, epsilon]=buildstiff(X,IX,ne,mprop,K,D0,rubber_param);    % Build global tangent stiffness matrix
-
-%       [LM, UM] = lu(K);
-%       D0 = UM \ (LM\P);
-      [K, ~] = enforce(K,R,bound);   
-      delta_D0 = - K \ R;
-
-      %%%
-%       [LM, UM, P_permutation] = lu(K);  
-%       [K, ~] = enforce(K,R,bound);
-%       delta_D0 = - UM \ (LM \ P_permutation*R);
-      %%%
-
+      
+      %delta_D0 = - K \ R;
+      delta_D0 = - (UM \ (LM \ R));
       D0 = D0 + delta_D0;
-   
+  
     end
-    
-    D = D0;
-    
-    % save data of the point of interest
-    P_plot(n, j) = P(48);
-    D_plot(n, j) = D(48);
+  
+    D = D0; % update D
+  
+    P_plot(n) = P(5);
+    D_plot(n) = D(5);
+% P_plot(n, j) = P(5);
+%     D_plot(n, j) = D(5);
+
     signorini_plot(n, j) = signorini(epsilon, rubber_param, 1, IX, mprop);
   
   end
   
   %[strain(:,j), stress(:,j), N(:,j), R(:,j)]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute the final support reaction
+
 end
 
-%--- Print the results on the command window -----------------------------%
+% %--- Print the results on the command window -----------------------------%
 % % External matrix
 % disp('External forces applied (N)')
 % P'
-
+% 
 % % Stress
 % disp('Stress on the bars (MPa)')
 % stress'
@@ -107,10 +109,9 @@ end
 % R'
 
 %--- Plot results --------------------------------------------------------%                                                        
-
-save('NR.mat', 'P_plot', 'D_plot');
-
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
+
+save('NR_modified.mat', 'P_plot', 'D_plot');
 
 figure(2)
 legend_name = strings(1, size(incr_vector,2) + 1);
@@ -192,7 +193,7 @@ return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Enforce boundary conditions %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [K,P]=enforce(K,P,bound);
+function [K,P]=enforce(K,P,bound)
 
 % This subroutine enforces the support boundary conditions
 
@@ -308,7 +309,7 @@ hold on
 box on
 
 colors = ['b', 'r', 'g']; % vector of colors for the structure
-eSTOP = 1e-8; % fake zero for tension sign decision
+fake_zero = 1e-8; % fake zero for tension sign decision
 
 for e = 1:ne
     xx = X(IX(e,1:2),1); % vector of x-coords of the nodes
@@ -320,9 +321,9 @@ for e = 1:ne
     yy = yy + D(edof(2:2:4));
     
     % choice of thhe color according to the state
-    if stress(e) > eSTOP  % tension
+    if stress(e) > fake_zero  % tension
       col = colors(1);
-    elseif stress(e) < - eSTOP  % compression
+    elseif stress(e) < - fake_zero  % compression
       col = colors(2);
     else col = colors(3);  % un-loaded
     end 
@@ -397,6 +398,5 @@ function [force] = signorini(epsilon, rubber_param, e, IX, mprop)
 
   propno = IX(e, 3);
   A = mprop(propno, 2);
-
   force =A *( c1*((1+c4*epsilon) - (1+c4*epsilon)^(-2)) + c2*(1 - (1+c4*epsilon)^(-3)) + c3 * (1 - 3*(1+c4*epsilon) + (1+c4*epsilon)^3 - 2*(1+c4*epsilon)^(-3) + 3*(1+c4*epsilon)^(-2)));
 return

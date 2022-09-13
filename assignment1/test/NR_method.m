@@ -8,7 +8,7 @@ close all
 clc
 
 %--- Input file ----------------------------------------------------------%
-TrussExercise2_2022             % Input file
+ex_2_1             % Input file
 
 neqn = size(X,1)*size(X,2);         % Number of equations
 ne = size(IX,1);                    % Number of elements
@@ -76,8 +76,8 @@ for j = 1:size(incr_vector,2) % cycle over the different # of load incr
     D = D0;
     
     % save data of the point of interest
-    P_plot(n, j) = P(48);
-    D_plot(n, j) = D(48);
+    P_plot(n, j) = P(5);
+    D_plot(n, j) = D(5);
     signorini_plot(n, j) = signorini(epsilon, rubber_param, 1, IX, mprop);
   
   end
@@ -108,7 +108,7 @@ end
 
 %--- Plot results --------------------------------------------------------%                                                        
 
-save('NR.mat', 'P_plot', 'D_plot');
+save('NR.mat', 'P_plot', 'D_plot', 'signorini_plot');
 
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
