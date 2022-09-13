@@ -11,6 +11,7 @@ clc
 %example1                % Input file
 %test1                   % Input file
 TrussExercise2_2022             % Input file
+%ex_2_1
 
 neqn = size(X,1)*size(X,2);         % Number of equations
 ne = size(IX,1);                    % Number of elements
@@ -35,9 +36,9 @@ signorini_plot=zeros(max(incr_vector), size(incr_vector, 2));
 [P_final] = buildload(X,IX,ne,P_final,loads,mprop); % vector of the external loads
 rubber_param = [mprop(3) mprop(4) mprop(5) mprop(6)];
 
-for j = 1:size(incr_vector,2)
+for j = 1:size(incr_vector,2) % cycle over the different increment
   % choose the step size
-  nincr = incr_vector(j);
+  nincr = incr_vector(1, j);
   
   % load increment
   delta_P = P_final / nincr; 
@@ -47,25 +48,26 @@ for j = 1:size(incr_vector,2)
   D0=zeros(neqn,1);                        % Displacement vector
   D=zeros(neqn,1);                        % Displacement vector
 
-  for n = 1:nincr
+  for n = 1:nincr % cycle the desired number of icrement
     P = P + delta_P;  % increment the load 
     D0 = D;
     [K, epsilon]=buildstiff(X,IX,ne,mprop,K,D0,rubber_param);    % Build global tangent stiffness matrix
     [K, ~] = enforce(K,R,bound);
-%     [LM, UM] = lu(K);
+    [LM, UM] = lu(K);
 %     D0 = UM \ (LM\P);
 %     [LM, UM] = lu(K);
 %     delta_D0 = UM \ (LM\R); 
-    delta_0 = K \ R;
+%     delta_0 = K \ R;
     for i = 1:i_max
       [~, ~, ~, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param);
       [~,R]=enforce(K,R,bound);       % Enforce boundary conditions
       
-      if abs(R) <= eSTOP * abs(P) % break when we respect the eSTOP
+      if norm(R) <= eSTOP * Pfinal % break when we respect the eSTOP
         break
       end
       
-      delta_D0 = - K \ R;
+      %delta_D0 = - K \ R;
+      delta_D0 = - (UM \ (LM \ R));
       D0 = D0 + delta_D0;
   
     end
@@ -74,7 +76,10 @@ for j = 1:size(incr_vector,2)
   
     P_plot(n) = P(48);
     D_plot(n) = D(48);
-    signorini_plot(n) = signorini(epsilon, rubber_param, 1, IX, mprop);
+% P_plot(n, j) = P(5);
+%     D_plot(n, j) = D(5);
+
+    signorini_plot(n, j) = signorini(epsilon, rubber_param, 1, IX, mprop);
   
   end
   

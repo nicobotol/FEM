@@ -9,9 +9,9 @@ clc
 
 %nincr=100;
 %incr_vector=[100];
-incr_vector = [2 3];
+incr_vector = [10];
 eSTOP=10^(-8);
-i_max=1000;
+i_max=10;
 Pfinal=80;
 
 

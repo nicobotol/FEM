@@ -52,7 +52,7 @@ for j = 1:size(incr_vector,2) % cycle over the different # of load incr
       [~, ~, ~, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute R
       [~,R]=enforce(K,R,bound);       % Enforce boundary conditions on R
       
-      if abs(R) <= eSTOP * abs(P) % break when we respect the eSTOP
+      if norm(R) <= eSTOP * Pfinal % break when we respect the eSTOP
         break
       end
   
