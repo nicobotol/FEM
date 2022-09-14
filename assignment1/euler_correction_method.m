@@ -8,9 +8,8 @@ close all
 clc
 
 %--- Input file ----------------------------------------------------------%
-%example1                % Input file
-%test1                   % Input file
-TrussExercise2_2022             % Input file
+TrussExercise2_2022                % Input file
+
 
 neqn = size(X,1)*size(X,2);         % Number of equations
 ne = size(IX,1);                    % Number of elements
@@ -55,7 +54,6 @@ for j=1:size(incr_vector, 2) % cycle over the different # of load incr
     
     P_plot(n, j) = P(48);
     D_plot(n, j) = D(48);
-    signorini_plot(n, j) = signorini(epsilon, rubber_param, 1, IX, mprop);
   
   end
   % [strain, stress, ~, ~]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
@@ -96,8 +94,6 @@ for j=1:size(incr_vector,2)
   legend_name(j) = strcat("Number of increment n = ", num2str(incr_vector(j)));
   hold on
 end
-legend_name(size(incr_vector,2) + 1) = "Signorini";
-plot(D_plot(:,end), signorini_plot(:,end))
 xlabel("Displacement (m)")
 ylabel("Force (N)")
 legend(legend_name,'Location','southeast')
@@ -362,16 +358,4 @@ function [Et] = Etfunction(epsilon, rubber_param)
   c4 = rubber_param(4);
 
   Et = c4*(c1*(1 + 2*(1 + c4*epsilon)^(-3)) + 3*c2*(1 + c4*epsilon)^(-4) + 3*c3*(-1 + (1 + c4*epsilon)^2 - 2*(1 + c4*epsilon)^(-3) + 2*(1 + c4*epsilon)^(-4)));
-return
-
-%% Signorini method
-function [sigma] = signorini(epsilon, rubber_param, e, IX, mprop)
-  c1 = rubber_param(1);
-  c2 = rubber_param(2);
-  c3 = rubber_param(3);
-  c4 = rubber_param(4);
-
-  propno = IX(e, 3);
-  A = mprop(propno, 2);
-  sigma =A *( c1*((1+c4*epsilon) - (1+c4*epsilon)^(-2)) + c2*(1 - (1+c4*epsilon)^(-3)) + c3 * (1 - 3*(1+c4*epsilon) + (1+c4*epsilon)^3 - 2*(1+c4*epsilon)^(-3) + 3*(1+c4*epsilon)^(-2)));
 return

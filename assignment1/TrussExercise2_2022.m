@@ -11,7 +11,7 @@ clc
 %incr_vector=[100];
 incr_vector = [40];
 eSTOP=10^(-8);
-i_max=10;
+i_max=100;
 Pfinal=80;
 
 

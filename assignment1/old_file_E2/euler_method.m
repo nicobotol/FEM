@@ -8,7 +8,7 @@ close all
 clc
 
 %--- Input file ----------------------------------------------------------%
-TrussExercise2_2022                % Input file
+TrussExercise2_2022             % Input file
 
 neqn = size(X,1)*size(X,2);         % Number of equations
 ne = size(IX,1);                    % Number of elements
@@ -23,6 +23,7 @@ strain=zeros(ne,1);                     % Element strain vector
 stress=zeros(ne,1);                     % Element stress vector
 P_plot=zeros(max(incr_vector), size(incr_vector, 2));
 D_plot=zeros(max(incr_vector), size(incr_vector, 2));
+signorini_plot=zeros(max(incr_vector), size(incr_vector, 2));
 
 %--- Calculate displacements ---------------------------------------------%
 
@@ -41,10 +42,9 @@ for j = 1:size(incr_vector, 2)  % cycle over the different # of load incr
   % Initialize arrays
   P=zeros(neqn,1);                        % Force vector
   D=zeros(neqn,1);                        % Displacement vector
-  K = zeros(neqn, neqn);
+
   for n = 1:nincr
     P = P + delta_P;  % increment the load 
-    K = zeros(neqn, neqn);
     [K, epsilon]=buildstiff(X,IX,ne,mprop,K,D,rubber_param);    % Build global tangent stiffness matrix
     [K,delta_P]=enforce(K,delta_P,bound);       % Enforce boundary conditions
     delta_D = K \ delta_P;                          % Solve system of equations
@@ -52,6 +52,7 @@ for j = 1:size(incr_vector, 2)  % cycle over the different # of load incr
   
     P_plot(n, j) = P(48);
     D_plot(n, j) = D(48);
+    signorini_plot(n, j) = signorini(epsilon, rubber_param, 1, IX, mprop);
   
   end
 
@@ -84,13 +85,15 @@ save('euler_method.mat', 'P_plot', 'D_plot');
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
 figure(2)
-legend_name = strings(1, size(incr_vector,2));
+legend_name = strings(1, size(incr_vector,2) + 1);
 for j=1:size(incr_vector,2)
   plot(D_plot(:,j), P_plot(:,j), 'o', 'LineWidth', 2.5)
   % build a vector with the name 
   legend_name(j) = strcat("Number of increment n = ", num2str(incr_vector(j)));
   hold on
 end
+legend_name(size(incr_vector,2) + 1) = "Signorini";
+plot(D_plot(:,end), signorini_plot(:,end))
 xlabel("Displacement (m)")
 ylabel("Force (N)")
 legend(legend_name,'Location','southeast')
@@ -350,4 +353,16 @@ function [Et] = Etfunction(epsilon, rubber_param)
   c4 = rubber_param(4);
 
   Et = c4*(c1*(1 + 2*(1 + c4*epsilon)^(-3)) + 3*c2*(1 + c4*epsilon)^(-4) + 3*c3*(-1 + (1 + c4*epsilon)^2 - 2*(1 + c4*epsilon)^(-3) + 2*(1 + c4*epsilon)^(-4)));
+return
+
+%% Signorini method
+function [force] = signorini(epsilon, rubber_param, e, IX, mprop)
+  c1 = rubber_param(1);
+  c2 = rubber_param(2);
+  c3 = rubber_param(3);
+  c4 = rubber_param(4);
+
+  propno = IX(e, 3);
+  A = mprop(propno, 2);
+  force =A *( c1*((1+c4*epsilon) - (1+c4*epsilon)^(-2)) + c2*(1 - (1+c4*epsilon)^(-3)) + c3 * (1 - 3*(1+c4*epsilon) + (1+c4*epsilon)^3 - 2*(1+c4*epsilon)^(-3) + 3*(1+c4*epsilon)^(-2)));
 return

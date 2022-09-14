@@ -56,7 +56,7 @@ for j = 1:size(incr_vector,2) % cycle over the different # of load incr
       [~,R]=enforce(K,R,bound);       % Enforce boundary conditions on R
 
        if norm(R) <= eSTOP * Pfinal % break when we respect the eSTOP
-        break
+         break
        end
 
       [K, ~]=buildstiff(X,IX,ne,mprop,K,D0,rubber_param);    % Build global tangent stiffness matrix
@@ -107,8 +107,6 @@ end
 
 %--- Plot results --------------------------------------------------------%                                                        
 
-save('NR.mat', 'P_plot', 'D_plot');
-
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
 lin_space = linspace(0, 0.2/3);
@@ -117,6 +115,8 @@ for i=1:100
   e = lin_space(i);
   signorini_plot(i) = signorini(e, rubber_param, 1, IX, mprop);
 end
+
+save('NR_week3.mat', 'P_plot', 'D_plot', 'signorini_plot', 'lin_space');
 
 figure(2)
 legend_name = strings(1, size(incr_vector,2) + 1);
