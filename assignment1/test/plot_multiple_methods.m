@@ -1,11 +1,11 @@
-% clear 
-% close all
-% clc
-% 
-% NR_modified_method;
-% NR_method;
-% euler_correction_method;
-% euler_method;
+clear 
+close all
+clc
+
+NR_modified_method;
+NR_method;
+euler_correction_method;
+euler_method;
 
 close all
 clear load
@@ -23,7 +23,7 @@ hold on
 plot(NR_modified.D_plot, load_v.P_plot)
 plot(euler.D_plot, load_v.P_plot)
 plot(euler_correction.D_plot, load_v.P_plot)
-plot(NR.signorini_plot, load_v.P_plot, '-', 'LineWidth',1.5 )
+plot(NR.D_plot, NR.signorini_plot, '--', 'LineWidth',1.5 )
 legend('NR', 'NR modified', 'euler', 'euler corrected', 'signorini','Location','southeast')
 xlabel('Displacement [m]')
 ylabel('Load P [N]')

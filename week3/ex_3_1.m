@@ -7,21 +7,18 @@ clear all;
 
 A = 2;  % cross section
 P = 200;  % externla load
-incr_vector = [5, 9];  % number of increment
-i_max = 100; % maximum number of iterations
-tollerance = 1e-8; % tollerance to stop the integration
-
-% rubber parameters
-c1 = 1;
-c2 = 50;
-c3 = 0.1;
-c4 = 100;
-rubber_param = [c1 c2 c3 c4];
+incr_vector = [50];  % number of increment
+i_max = 1000; % maximum number of iterations
+n_incr = 10; 
+eSTOP = 1e-8;
+Pfinal = 0.03;
+a = 0.4;
+k = 0.02; % spring stiffness
 
 % Node coordinates: x, y
 X = [
 0	0
-1.5	0
+1.5	-a
 3	0
 ];
 % Element connectivity: node1_id, node2_id, material_id
@@ -31,18 +28,18 @@ IX = [
 ];
 % Element properties: Young's modulus, area
 mprop = [
-1	A
+1	A 
 ];
 % Nodal diplacements: node_id, degree of freedom (1 - x, 2 - y), displacement
 bound = [
 1	1	0
 1	2	0
-2	2	0
+3	1	0
 3	2	0
 ];
 % Nodal loads: node_id, degree of freedom (1 - x, 2 - y), load
 loads = [
-3	1	P
+2	2	Pfinal
 ];
 % Control parameters
 plotdof = 3;

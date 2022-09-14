@@ -39,16 +39,18 @@ for j = 1:size(incr_vector,2) % cycle over the different # of load incr
   % load increment
   delta_P = P_final / nincr; 
   
+  clear P D0 D
   % Initialize arrays
   P=zeros(neqn,1);                        % Force vector
   D0=zeros(neqn,1);                        % Displacement vector
   D=zeros(neqn,1);                        % Displacement vector
-
+ 
   for n = 1:nincr  % cycle to the number of increments
     P = P + delta_P;  % increment the load 
     D0 = D;
-    
+     
     for i = 1:i_max
+      K=zeros(neqn,neqn);
       [~, ~, ~, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute R
       [~,R]=enforce(K,R,bound);       % Enforce boundary conditions on R
       
@@ -58,16 +60,11 @@ for j = 1:size(incr_vector,2) % cycle over the different # of load incr
   
       [K, epsilon]=buildstiff(X,IX,ne,mprop,K,D0,rubber_param);    % Build global tangent stiffness matrix
 
-%       [LM, UM] = lu(K);
-%       D0 = UM \ (LM\P);
+      
       [K, ~] = enforce(K,R,bound);   
-      delta_D0 = - K \ R;
 
-      %%%
-%       [LM, UM, P_permutation] = lu(K);  
-%       [K, ~] = enforce(K,R,bound);
-%       delta_D0 = - UM \ (LM \ P_permutation*R);
-      %%%
+      [LM, UM] = lu(K);
+      delta_D0 = - UM \ (LM \ R);
 
       D0 = D0 + delta_D0;
    

@@ -54,10 +54,7 @@ for j = 1:size(incr_vector,2) % cycle over the different increment
     [K, epsilon]=buildstiff(X,IX,ne,mprop,K,D0,rubber_param);    % Build global tangent stiffness matrix
     [K, ~] = enforce(K,R,bound);
     [LM, UM] = lu(K);
-%     D0 = UM \ (LM\P);
-%     [LM, UM] = lu(K);
-%     delta_D0 = UM \ (LM\R); 
-%     delta_0 = K \ R;
+
     for i = 1:i_max
       [~, ~, ~, R]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param);
       [~,R]=enforce(K,R,bound);       % Enforce boundary conditions
@@ -66,18 +63,15 @@ for j = 1:size(incr_vector,2) % cycle over the different increment
         break
       end
       
-      %delta_D0 = - K \ R;
-      delta_D0 = - (UM \ (LM \ R));
+      delta_D0 = - UM \ (LM \ R);
       D0 = D0 + delta_D0;
   
     end
   
     D = D0; % update D
   
-    P_plot(n) = P(5);
-    D_plot(n) = D(5);
-% P_plot(n, j) = P(5);
-%     D_plot(n, j) = D(5);
+    P_plot(n, j) = P(5);
+    D_plot(n, j) = D(5);
 
     signorini_plot(n, j) = signorini(epsilon, rubber_param, 1, IX, mprop);
   
@@ -113,6 +107,11 @@ PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
 save('NR_modified.mat', 'P_plot', 'D_plot');
 
+lin = linspace(0,0.2,100) ;
+for i = 1:100
+  sig_2(i) = signorini(lin(i), rubber_param, 1, IX, mprop);
+end
+
 figure(2)
 legend_name = strings(1, size(incr_vector,2) + 1);
 for j=1:size(incr_vector,2)
@@ -123,6 +122,7 @@ for j=1:size(incr_vector,2)
 end
 legend_name(size(incr_vector,2) + 1) = "Signorini";
 plot(D_plot(:,end), signorini_plot(:,end))
+%plot(lin, sig_2)
 xlabel("Displacement (m)")
 ylabel("Force (N)")
 legend(legend_name,'Location','southeast')

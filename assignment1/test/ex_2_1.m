@@ -7,8 +7,8 @@ clear all;
 
 A = 2;  % cross section
 P = 200;  % externla load
-incr_vector = [50];  % number of increment
-i_max = 1; % maximum number of iterations
+incr_vector = [20];  % number of increment
+i_max = 100; % maximum number of iterations
 tollerance = 1e-8; % tollerance to stop the integration
 %nincr = 5;
 % rubber parameters
@@ -17,7 +17,7 @@ c2 = 50;
 c3 = 0.1;
 c4 = 100;
 rubber_param = [c1 c2 c3 c4];
-eSTOP = 1e-6;
+eSTOP = 1e-8;
 Pfinal = 200;
 
 % Node coordinates: x, y
@@ -33,7 +33,8 @@ IX = [
 ];
 % Element properties: Young's modulus, area
 mprop = [
-1	A 1.2 5 0.2 50
+1 A 1 50 0.1 100
+%1	A 1.2 5 0.2 50
 ];
 % Nodal diplacements: node_id, degree of freedom (1 - x, 2 - y), displacement
 bound = [
