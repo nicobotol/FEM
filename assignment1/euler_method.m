@@ -42,17 +42,25 @@ for j = 1:size(incr_vector, 2)  % cycle over the different # of load incr
   P=zeros(neqn,1);                        % Force vector
   D=zeros(neqn,1);                        % Displacement vector
   K = zeros(neqn, neqn);
+  residual_norm = zeros(1, nincr);
+
   for n = 1:nincr
-    P = P + delta_P;  % increment the load 
+    
+    P = P + delta_P;  % increment the load
+
     K = zeros(neqn, neqn);
     [K, epsilon]=buildstiff(X,IX,ne,mprop,K,D,rubber_param);    % Build global tangent stiffness matrix
-    [K,delta_P]=enforce(K,delta_P,bound);       % Enforce boundary conditions
+    [K, delta_P]=enforce(K,delta_P,bound);       % Enforce boundary conditions
     delta_D = K \ delta_P;                          % Solve system of equations
     D = D + delta_D;
   
     P_plot(n, j) = P(48);
     D_plot(n, j) = D(48);
-  
+
+    [~, stress]=recover(mprop,X,IX,D,ne,rubber_param);
+ 
+    [R] = residual(stress,ne,IX, X, P, D, mprop);
+    residual_norm(n) = norm(R);
   end
 
   % [strain, stress, ~, ~]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
@@ -79,7 +87,9 @@ end
 % R'
 
 %--- Plot results --------------------------------------------------------%                                                        
-save('euler_method.mat', 'P_plot', 'D_plot');
+%save('euler_method.mat', 'P_plot', 'D_plot');
+save('euler_method_200.mat', 'P_plot', 'D_plot','residual_norm');
+
 
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
@@ -95,6 +105,14 @@ xlabel("Displacement (m)")
 ylabel("Force (N)")
 legend(legend_name,'Location','southeast')
 hold off
+
+figure(3)
+iteration_n = [1:1:nincr];
+plot(iteration_n, residual_norm);
+xlabel('Increment number')
+ylabel('Norm of he residual')
+title('Norm of the residuals')
+
 return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -181,19 +199,50 @@ return
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%% Calculate element strain and stress %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% function [strain,stress]=recover(mprop,X,IX,D,ne,strain,stress);
+function [strain, stress]=recover(mprop,X,IX,D,ne,rubber_param)
+
+% This subroutine recovers the element stress, element strain, force on each element 
+% and nodal reaction forces
+stress = zeros(ne, 1);
+strain = zeros(ne,1);
+
+for e=1:ne
+  d = zeros(4, 1);
+  [edof] = build_edof(IX, e);
+
+  % build the matrix d from D
+  d = build_d(D, edof);
+
+  % compute the bar length
+  [L0, delta_x, delta_y] = length(IX, X, e);
+  
+  % displacement vector
+  B0 = 1/L0^2 * [-delta_x -delta_y delta_x delta_y]';  
+
+  % materials properties
+  propno = IX(e, 3);
+  A = mprop(propno, 2);
+
+  strain(e) = B0' * d';
+  stress(e) = stress_function(strain(e), rubber_param);
+
+end
+
+return
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%% Calculate element strain and stress %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% function [strain,stress, N, R]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
 % 
 % % This subroutine recovers the element stress, element strain, 
 % % and nodal reaction forces
-% 
-% % allocate memory for stress and strain vectors
-% strain = zeros(ne, 1); 
+% strain = zeros(ne, 1);
 % stress = zeros(ne, 1);
-% 
+% B0_sum = zeros(2*size(X,1), 1);
 % for e=1:ne
-%   d = zeros(4, 1); % allocate memory for element stiffness matrix
-% 
-%  [edof] = build_edof(IX, e); % index for buildg K
+%   d = zeros(4, 1);
+%   [edof] = build_edof(IX, e);
 % 
 %   % build the matrix d from D
 %   for i = 1:4
@@ -213,59 +262,52 @@ return
 % 
 %   strain(e) = B0' * d; 
 %   stress(e) = strain(e) * E;
+%   N(e) = stress(e) * A;
+%   
+%   % sum B0 after having transformed it in order to be compliant for the sum
+%   % with P
+%   for jj = 1:4
+%       B0_sum(edof(jj)) = B0_sum(edof(jj)) + B0(jj)*N(e)*L0;
+%   end
 % 
 % end
 % 
+% % compute the support reactions (N)
+% R = B0_sum - P; % 2nnx1 (nn is node number)
 % 
 % return
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%% Calculate element strain and stress %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [strain,stress, N, R]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
-
-% This subroutine recovers the element stress, element strain, 
-% and nodal reaction forces
-strain = zeros(ne, 1);
-stress = zeros(ne, 1);
-B0_sum = zeros(2*size(X,1), 1);
-for e=1:ne
+%%%%% Residuals %%%%
+function [R] = residual(stress, ne,IX, X, P, D, mprop)
+R_int = zeros(2*size(X,1), 1);
+  for e=1:ne
   d = zeros(4, 1);
   [edof] = build_edof(IX, e);
 
   % build the matrix d from D
-  for i = 1:4
-    d(i) = D(edof(i));
-  end
+  d = build_d(D, edof);
 
   % compute the bar length
   [L0, delta_x, delta_y] = length(IX, X, e);
   
   % displacement vector
   B0 = 1/L0^2 * [-delta_x -delta_y delta_x delta_y]';  
-  
+
   % materials properties
   propno = IX(e, 3);
-  E = mprop(propno, 1);
   A = mprop(propno, 2);
 
-  strain(e) = B0' * d; 
-  stress(e) = strain(e) * E;
-  N(e) = stress(e) * A;
-  
+  N(e) = A*stress(e,1);
+    
   % sum B0 after having transformed it in order to be compliant for the sum
   % with P
   for jj = 1:4
-      B0_sum(edof(jj)) = B0_sum(edof(jj)) + B0(jj)*N(e)*L0;
+      R_int(edof(jj)) = R_int(edof(jj)) + B0(jj) * N(e) * L0;
   end
 
-end
+  end
 
-% compute the support reactions (N)
-R = B0_sum - P; % 2nnx1 (nn is node number)
-
-
-
+R = R_int - P;
 return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -349,5 +391,16 @@ function [Et] = Etfunction(epsilon, rubber_param)
   c3 = rubber_param(3);
   c4 = rubber_param(4);
 
-  Et = c4*(c1*(1 + 2*(1 + c4*epsilon)^(-3)) + 3*c2*(1 + c4*epsilon)^(-4) + 3*c3*(-1 + (1 + c4*epsilon)^2 - 2*(1 + c4*epsilon)^(-3) + 2*(1 + c4*epsilon)^(-4)));
+  Et = c4*(c1*(1 + 2*(1 + c4*epsilon)^(-3)) + 3*c2*(1 + c4*epsilon)^(-4) + ...
+    3*c3*(-1 + (1 + c4*epsilon)^2 - 2*(1 + c4*epsilon)^(-3) + 2*(1 + c4*epsilon)^(-4)));
+return
+
+%% Stress function
+function [stress] = stress_function(epsilon, rubber_param)
+  c1 = rubber_param(1);
+  c2 = rubber_param(2);
+  c3 = rubber_param(3);
+  c4 = rubber_param(4);
+
+  stress = c1*((1+c4*epsilon) - (1+c4*epsilon)^(-2)) + c2*(1 - (1+c4*epsilon)^(-3)) + c3 * (1 - 3*(1+c4*epsilon) + (1+c4*epsilon)^3 - 2*(1+c4*epsilon)^(-3) + 3*(1+c4*epsilon)^(-2));
 return

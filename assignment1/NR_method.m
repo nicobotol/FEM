@@ -44,7 +44,7 @@ for j = 1:size(incr_vector,2) % cycle over the different # of load incr
   P=zeros(neqn,1);                        % Force vector
   D0=zeros(neqn,1);                        % Displacement vector
   D=zeros(neqn,1);                        % Displacement vector
- 
+  residual_norm = zeros(1, nincr);
   for n = 1:nincr  % cycle to the number of increments
     P = P + delta_P;  % increment the load 
     D0 = D;
@@ -56,6 +56,7 @@ for j = 1:size(incr_vector,2) % cycle over the different # of load incr
       [~,R]=enforce(K,R,bound);       % Enforce boundary conditions on R
 
        if norm(R) <= eSTOP * Pfinal % break when we respect the eSTOP
+         residual_norm(n) = norm(R); 
          break
        end
 
@@ -109,7 +110,8 @@ end
 
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
-save('NR.mat', 'P_plot', 'D_plot');
+% save('NR.mat', 'P_plot', 'D_plot');
+save('NR_200.mat', 'P_plot', 'D_plot', 'residual_norm');
 
 figure(2)
 legend_name = strings(1, size(incr_vector,2));
@@ -123,7 +125,17 @@ xlabel("Displacement (m)")
 ylabel("Force (N)")
 legend(legend_name,'Location','southeast')
 hold off
+
+
+figure(3)
+iteration_n = [1:1:nincr];
+plot(iteration_n, residual_norm);
+xlabel('Increment number')
+ylabel('Norm of he residual')
+title('Norm of the residuals')
+
 return
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Build global load vector %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

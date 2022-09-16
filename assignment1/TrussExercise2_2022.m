@@ -9,7 +9,7 @@ clc
 
 %nincr=100;
 %incr_vector=[100];
-incr_vector = [40];
+incr_vector = [1000];
 eSTOP=10^(-8);
 i_max=100;
 Pfinal=80;
