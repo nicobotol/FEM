@@ -140,6 +140,16 @@ xlabel('Number of increments')
 ylabel('Norm of the final residual')
 title('Norm of the final residual')
 
+% plot of the final displacement
+figure(4)
+for j=1:size(incr_vector,2)
+  plot(incr_vector(j), D_plot(incr_vector(j),j), 'o');
+  hold on
+end
+hold off
+xlabel('Number of load increments')
+ylabel('Final displacement')
+
 return
 
 
