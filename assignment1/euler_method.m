@@ -29,6 +29,7 @@ D_plot=zeros(max(incr_vector), size(incr_vector, 2));
 [P_final] = buildload(X,IX,ne,P_final,loads,mprop); % vector of the external loads
 
 rubber_param = [mprop(3) mprop(4) mprop(5) mprop(6)]; % coefficients for the nonlinear material behaviour
+residual_norm = zeros(1, size(incr_vector, 2));
 
 for j = 1:size(incr_vector, 2)  % cycle over the different # of load incr
 
@@ -42,7 +43,6 @@ for j = 1:size(incr_vector, 2)  % cycle over the different # of load incr
   P=zeros(neqn,1);                        % Force vector
   D=zeros(neqn,1);                        % Displacement vector
   K = zeros(neqn, neqn);
-  residual_norm = zeros(1, nincr);
 
   for n = 1:nincr
     
@@ -59,36 +59,17 @@ for j = 1:size(incr_vector, 2)  % cycle over the different # of load incr
 
     [~, stress]=recover(mprop,X,IX,D,ne,rubber_param);
  
-    [R] = residual(stress,ne,IX, X, P, D, mprop);
-    residual_norm(n) = norm(R);
   end
+  
+  [R] = residual(stress,ne,IX, X, P, D, mprop);
+  residual_norm(j) = norm(R);
 
   % [strain, stress, ~, ~]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
 end
-%--- Print the results on the command window -----------------------------%
-% % External matrix
-% disp('External forces applied (N)')
-% P'
-% 
-% % Stress
-% disp('Stress on the bars (MPa)')
-% stress'
-% 
-% % Strain
-% disp('Strain of the bars')
-% strain'
-
-% % Forces on the bars
-% disp('Internal forces on the bar (N)')
-% N
-% 
-% % Support reaction
-% disp('Support reactions forces (N)')
-% R'
 
 %--- Plot results --------------------------------------------------------%                                                        
 %save('euler_method.mat', 'P_plot', 'D_plot');
-save('euler_method_200.mat', 'P_plot', 'D_plot','residual_norm');
+%save('euler_method_200.mat', 'P_plot', 'D_plot', 'residual_norm');
 
 
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
@@ -107,11 +88,10 @@ legend(legend_name,'Location','southeast')
 hold off
 
 figure(3)
-iteration_n = [1:1:nincr];
-plot(iteration_n, residual_norm);
-xlabel('Increment number')
-ylabel('Norm of he residual')
-title('Norm of the residuals')
+plot(incr_vector, residual_norm, 'o');
+xlabel('Number of increments')
+ylabel('Norm of the final residual')
+title('Norm of the final residual')
 
 return
 

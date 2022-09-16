@@ -30,6 +30,7 @@ VM_plot = zeros(1, 100); % vector for plotting the von mises curve
 [P_final] = buildload(X,IX,ne,P_final,loads,mprop); % vector of the external loads
 
 rubber_param = [mprop(3) mprop(4) mprop(5) mprop(6)]; % coefficients for the nonlinear material behaviour
+residual_norm = zeros(1, size(incr_vector, 2));
 
 for j = 1:size(incr_vector,2) % cycle over the different # of load incr
  
@@ -44,8 +45,9 @@ for j = 1:size(incr_vector,2) % cycle over the different # of load incr
   P=zeros(neqn,1);                        % Force vector
   D0=zeros(neqn,1);                        % Displacement vector
   D=zeros(neqn,1);                        % Displacement vector
-  residual_norm = zeros(1, nincr);
+  
   for n = 1:nincr  % cycle to the number of increments
+    stress = zeros(ne,1);
     P = P + delta_P;  % increment the load 
     D0 = D;
     [K, ~]=buildstiff(X,IX,ne,mprop,K,D0,rubber_param);    % Build global tangent stiffness matrix
@@ -58,7 +60,6 @@ for j = 1:size(incr_vector,2) % cycle over the different # of load incr
       [~,R]=enforce(K,R,bound);       % Enforce boundary conditions on R
 
        if norm(R) <= eSTOP * Pfinal % break when we respect the eSTOP
-         residual_norm(n) = norm(R);
          break
        end
       
@@ -77,9 +78,10 @@ for j = 1:size(incr_vector,2) % cycle over the different # of load incr
   
   end
   
+  residual_norm(j) = norm(R); % norm of the final residual
+
   %[strain(:,j), stress(:,j), N(:,j), R(:,j)]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute the final support reaction
 end
-
 %--- Print the results on the command window -----------------------------%
 % % External matrix
 % disp('External forces applied (N)')
@@ -120,6 +122,13 @@ xlabel("Displacement (m)")
 ylabel("Force (N)")
 legend(legend_name,'Location','southeast')
 hold off
+
+% plot the norm of the final residual
+figure(3)
+plot(incr_vector, residual_norm, 'o');
+xlabel('Number of increments')
+ylabel('Norm of the final residual')
+title('Norm of the final residual')
 return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
