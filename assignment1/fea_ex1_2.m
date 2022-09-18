@@ -299,7 +299,7 @@ legend([h1 h2 h_u h_c h_t],{'Undeformed state','Deformed state','Unloaded','Comp
 
 axis equal;
 hold off
-text_size = 30;
+text_size = 20;
 title('Truss structure in deformed and undeformed state')
 xlabel('x [m]')
 ylabel('y [m]')

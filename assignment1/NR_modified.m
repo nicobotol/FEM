@@ -32,6 +32,8 @@ VM_plot = zeros(1, 100); % vector for plotting the von mises curve
 rubber_param = [mprop(3) mprop(4) mprop(5) mprop(6)]; % coefficients for the nonlinear material behaviour
 residual_norm = zeros(1, size(incr_vector, 2));
 
+total_iteration = 0;
+
 for j = 1:size(incr_vector,2) % cycle over the different # of load incr
  
   % number of increments
@@ -60,6 +62,7 @@ for j = 1:size(incr_vector,2) % cycle over the different # of load incr
       [~,R]=enforce(K,R,bound);       % Enforce boundary conditions on R
 
        if norm(R) <= eSTOP * Pfinal % break when we respect the eSTOP
+         total_iteration = total_iteration + i;
          break
        end
       
@@ -79,9 +82,10 @@ for j = 1:size(incr_vector,2) % cycle over the different # of load incr
   end
   
   residual_norm(j) = norm(R); % norm of the final residual
-
+  
   %[strain(:,j), stress(:,j), N(:,j), R(:,j)]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute the final support reaction
 end
+display(total_iteration);
 %--- Print the results on the command window -----------------------------%
 % % External matrix
 % disp('External forces applied (N)')
@@ -107,8 +111,8 @@ end
 
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
-% save('NR_modified.mat', 'P_plot', 'D_plot');
-save('NR_modified_200.mat', 'P_plot', 'D_plot', 'residual_norm');
+ save('NR_modified_results.mat', 'P_plot', 'D_plot', 'residual_norm');
+%save('NR_modified_200.mat', 'P_plot', 'D_plot', 'residual_norm');
 
 figure(2)
 legend_name = strings(1, size(incr_vector,2));

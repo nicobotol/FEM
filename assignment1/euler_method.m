@@ -68,8 +68,8 @@ for j = 1:size(incr_vector, 2)  % cycle over the different # of load incr
 end
 
 %--- Plot results --------------------------------------------------------%                                                        
-%save('euler_method.mat', 'P_plot', 'D_plot');
-%save('euler_method_200.mat', 'P_plot', 'D_plot', 'residual_norm');
+save('euler_method.mat', 'P_plot', 'D_plot', 'residual_norm');
+%save('euler_method_mi_r2.mat', 'P_plot', 'D_plot', 'residual_norm');
 
 
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
@@ -100,7 +100,7 @@ for j=1:size(incr_vector,2)
   hold on
 end
 hold off
-xaxis('Number of load increments')
+xlabel('Number of load increments')
 ylabel('Final displacement')
 
 return

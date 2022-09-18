@@ -33,6 +33,8 @@ rubber_param = [mprop(3) mprop(4) mprop(5) mprop(6)]; % coefficients for the non
 
 residual_norm = zeros(1, size(incr_vector,2)); % vector for the norm of final residual
 
+total_iteration = 0;
+
 for j = 1:size(incr_vector,2) % cycle over the different # of load incr
  
   % number of increments
@@ -60,6 +62,7 @@ for j = 1:size(incr_vector,2) % cycle over the different # of load incr
       [~,R]=enforce(K,R,bound);       % Enforce boundary conditions on R
       residual_norm(j) = norm(R); 
        if norm(R) <= eSTOP * Pfinal % break when we respect the eSTOP
+         total_iteration = total_iteration + i;
          break
        end
 
@@ -91,7 +94,7 @@ for j = 1:size(incr_vector,2) % cycle over the different # of load incr
   
   %[strain(:,j), stress(:,j), N(:,j), R(:,j)]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute the final support reaction
 end
-
+display(total_iteration)
 %--- Print the results on the command window -----------------------------%
 % % External matrix
 % disp('External forces applied (N)')
@@ -117,7 +120,7 @@ end
 
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
-% save('NR.mat', 'P_plot', 'D_plot');
+save('NR.mat', 'P_plot', 'D_plot', 'residual_norm');
 %save('NR_200.mat', 'P_plot', 'D_plot', 'residual_norm');
 
 figure(2)

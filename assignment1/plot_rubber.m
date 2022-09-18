@@ -2,11 +2,11 @@ clear
 close all
 clc
 
-step_size = 10;
+step_size = 0.5;
 
-rubber_param = [  1.2 5 0.2 50;
-                  0 1 0.2 200];
-step = [0:step_size/100:step_size-1];
+rubber_param = [  1.2 5 0.2 50; % material 1
+                  0 1 0.2 200]; % material 2
+step = [0:step_size/100:abs(step_size-1)];
 
 figure()
 for i=1:2
