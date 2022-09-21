@@ -10,7 +10,9 @@ clc
 %--- Input file ----------------------------------------------------------%
 %example1                % Input file
 %test1                   % Input file
-exercise_1_1             % Input file
+%exercise_1_1             % Input file
+%test_disp
+ex1_1
 
 neqn = size(X,1)*size(X,2);         % Number of equations
 ne = size(IX,1);                    % Number of elements
@@ -276,7 +278,7 @@ for e = 1:ne
     xx = xx + D(edof(1:2:4));
     yy = yy + D(edof(2:2:4));
     
-    h2=plot(xx,yy, 'b', LineWidth',3.5); % Deformed structure
+    h2=plot(xx,yy, 'b', 'LineWidth',3.5); % Deformed structure
 end
 plotsupports
 plotloads
