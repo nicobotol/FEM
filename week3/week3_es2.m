@@ -53,7 +53,7 @@ for j = 1:size(incr_vector,2) % cycle over the different # of load incr
       [R] = residual(stress, strain, ne,IX, X, P, D0, mprop, k);
       [~,R]=enforce(K,R,bound);       % Enforce boundary conditions on R
 
-       if norm(R) <= eSTOP * Pfinal % break when we respect the eSTOP
+       if norm(R) <= eSTOP * norm(Pfinal) % break when we respect the eSTOP
         break
        end
 

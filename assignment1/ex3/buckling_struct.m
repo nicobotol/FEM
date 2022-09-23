@@ -6,13 +6,11 @@
 clear all;
 
 A = 2;  % cross section
-incr_vector = [50];  % number of increment
+%incr_vector = [100];  % number of increment
 i_max = 1000; % maximum number of iterations
-n_incr = 10; 
+nincr = 10; 
 eSTOP = 1e-8;
-Pfinal = 0.02;
-a = 0.4;
-k = 0.022; % spring stiffness
+Pfinal = 0.006;
 
 % Node coordinates: x, y
 X = [
@@ -137,18 +135,21 @@ IX = [
 ];
 % Element properties: Young's modulus, area
 mprop = [
-1	1
-2	2
+0.8	0.2
 ];
 % Nodal diplacements: node_id, degree of freedom (1 - x, 2 - y), displacement
 bound = [
 1	2	0
-1 1 0
+2 2 0
 33	2	0
+34 2 0
+1 1 0
 ];
 % Nodal loads: node_id, degree of freedom (1 - x, 2 - y), load
 loads = [
-33	1	-Pfinal*(0.5+1e-5)
+1 1 Pfinal*(0.5+1e-3)
+33	1	-Pfinal*(0.5+1e-3)
+2 1 Pfinal/2
 34	1	-Pfinal/2
 ];
 % Control parameters

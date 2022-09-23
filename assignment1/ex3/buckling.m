@@ -9,6 +9,7 @@ clc
 
 %--- Input file ----------------------------------------------------------%
 buckling_struct
+%week3_ex_3_struct
 
 neqn = size(X,1)*size(X,2);         % Number of equations
 ne = size(IX,1);                    % Number of elements
@@ -19,75 +20,70 @@ disp(['Number of DOF ' sprintf('%d',neqn) ...
 K=sparse(neqn,neqn);                % Stiffness matrix
 P_final=zeros(neqn,1);                  % Force vector
 R=zeros(neqn,1);                        % Residual vector
-strain=zeros(ne,size(incr_vector, 2));                     % Element strain vector
-stress=zeros(ne,size(incr_vector, 2));                     % Element stress vector
-P_plot=zeros(max(incr_vector), size(incr_vector, 2));
-D_plot=zeros(max(incr_vector), size(incr_vector, 2));
+strain=zeros(ne,1);                     % Element strain vector
+stress=zeros(ne,1);                     % Element stress vector
+P_plot=zeros(nincr, 1);
+D_plot=zeros(nincr, 1);
 
 
 %--- Calculate displacements ---------------------------------------------%
 
 [P_final] = buildload(X,IX,ne,P_final,loads,mprop); % vector of the external loads
 
-for j = 1:size(incr_vector,2) % cycle over the different # of load incr
- 
-  % number of increments
-  nincr = incr_vector(j);
+% load increment
+delta_P = P_final / nincr; 
 
-  % load increment
-  delta_P = P_final / nincr; 
-  
-  clear P D0 D
-  % Initialize arrays
-  P=zeros(neqn,1);                        % Force vector
-  D0=zeros(neqn,1);                        % Displacement vector
-  D=zeros(neqn,1);                        % Displacement vector
- 
-  for n = 1:nincr  % cycle to the number of increments
-    P = P + delta_P;  % increment the load 
-    D0 = D;
-     
-    for i = 1:i_max
-      K=zeros(neqn,neqn);
-      
-      [R] = residual(stress, ne,IX, X, P, D0, mprop);
-      [~,R]=enforce(K,R,bound);       % Enforce boundary conditions on R
+clear P D0 D
+% Initialize arrays
+P=zeros(neqn,1);                        % Force vector
+D0=zeros(neqn,1);                        % Displacement vector
+D=zeros(neqn,1);                        % Displacement vector
 
-       if norm(R) <= eSTOP * Pfinal % break when we respect the eSTOP
-         %CONV=i
-         %pause
-        break
-       end
+for n = 1:nincr  % cycle to the number of increments
+  P = P + delta_P;  % increment the load 
+  D0 = D;
+   
+  for i = 1:i_max
+    K=zeros(neqn,neqn);
+    
+    [R] = residual(stress, ne,IX, X, P, D0, mprop);
+    [~,R]=enforce(K,R,bound);       % Enforce boundary conditions on R
 
-      [K, ~]=buildstiff(X,IX,ne,mprop,K,D0);    % Build global tangent stiffness matrix
+     if norm(R) <= eSTOP * norm(Pfinal) % break when we respect the eSTOP
+       %CONV=i
+       %pause
+      break
+     end
 
-      [K, ~] = enforce(K,R,bound);   
+    [K, ~]=buildstiff(X,IX,ne,mprop,K,D0);    % Build global tangent stiffness matrix
+
+    [K, ~] = enforce(K,R,bound);   
 
 %       [LM, UM] = lu(K);
 %       delta_D0 = - UM \ (LM \ R);
 
-      delta_D0 = - K \ R;
+    delta_D0 = - K \ R;
 
-      D0 = D0 + delta_D0;
-      
-      [~, stress] = recover(mprop,X,IX,D0,ne);
-      
-    end
+    D0 = D0 + delta_D0;
     
-    D = D0;
+    [~, stress] = recover(mprop,X,IX,D0,ne);
     
-    % save data of the point of interest
-    %P_plot(n, j) = P(1);
-    %D_plot(n, j) = D(36);
-  
   end
-  v_disp = D(36);
-  %[strain(:,j), stress(:,j), N(:,j), R(:,j)]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute the final support reaction
+  
+  D = D0;
+  
+  % save data of the point of interest
+  P_plot(n) = 2*P(1);
+  D_plot(n) = D(1) - D(65);
+
 end
+  %v_disp = D(36);
+  %[strain(:,j), stress(:,j), N(:,j), R(:,j)]=recover(mprop,X,IX,D0,ne,strain,stress,P,rubber_param); % compute the final support reaction
+
 
 %--- Print the results on the command window -----------------------------%
 
-disp(strcat('The maximum vertical displacement is d = ', num2str(v_disp)))
+%disp(strcat('The maximum vertical displacement is d = ', num2str(v_disp)))
 % % External matrix
 % disp('External forces applied (N)')
 % P'
@@ -117,18 +113,12 @@ PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 [L0, ~, ~] = length(IX, X, 1);
 lin_space = linspace(0, 0.9);
 
-% figure(2)
-% legend_name = strings(1, size(incr_vector,2) + 1);
-% for j=1:size(incr_vector,2)
-%   plot(D_plot(:,j), P_plot(:,j), '-', 'LineWidth', 2.5)
-%   % build a vector with the name 
-%   legend_name(j) = strcat("Number of increment n = ", num2str(incr_vector(j)));
-%   hold on
-% end
-% xlabel("Displacement (m)")
-% ylabel("Force (N)")
-% legend(legend_name,'Location','southeast')
-% hold off
+figure(2)
+plot(D_plot, P_plot, '-', 'LineWidth', 2.5)
+% build a vector with the name 
+xlabel("Displacement (m)")
+ylabel("Force (N)")
+
 return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

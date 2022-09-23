@@ -1,55 +1,60 @@
 % Created with:       FlExtract v1.13
 % Element type:       truss
-% Number of nodes:    34
-% Number of elements: 81
+% Number of nodes:    42
+% Number of elements: 101
 
 clear all;
-
-A = 2;  % cross section
-incr_vector = [50];  % number of increment
-i_max = 1000; % maximum number of iterations
-n_incr = 10; 
+P_up = 0.0014;
+P_down = 0.0013;
 eSTOP = 1e-8;
-Pfinal = 0.00005;
-a = 0.4;
-k = 0.02; % spring stiffness
+incr_vector = [100];  % number of increment
+i_max = 100;
+Pfinal = max(P_up, P_down);
 
 % Node coordinates: x, y
 X = [
 0	0
-0	5
+0	1
+1	0
+1	1
+2	0
+2	1
+3	0
+3	1
+4	0
+4	1
 5	0
-5	5
+5	1
+6	0
+6	1
+7	0
+7	1
+8	0
+8	1
+9	0
+9	1
 10	0
-10	5
+10	1
+11	0
+11	1
+12	0
+12	1
+13	0
+13	1
+14	0
+14	1
 15	0
-15	5
+15	1
+16	0
+16	1
+17	0
+17	1
+18	0
+18	1
+19	0
+19	1
 20	0
-20	5
-25	0
-25	5
-30	0
-30	5
-35	0
-35	5
-40	0
-40	5
-45	0
-45	5
-50	0
-50	5
-55	0
-55	5
-60	0
-60	5
-65	0
-65	5
-70	0
-70	5
-75	0
-75	5
-80	0
-80	5
+20	1
 ];
 % Element connectivity: node1_id, node2_id, material_id
 IX = [
@@ -134,20 +139,42 @@ IX = [
 34	32	1
 33	32	1
 34	33	1
+36	33	1
+35	33	1
+36	34	1
+35	34	1
+36	35	1
+38	35	1
+37	35	1
+38	36	1
+37	36	1
+38	37	1
+40	37	1
+39	37	1
+40	38	1
+39	38	1
+40	39	1
+42	39	1
+41	39	1
+42	40	1
+41	40	1
+42	41	1
 ];
 % Element properties: Young's modulus, area
 mprop = [
-0.8	0.2
+1	1
 ];
 % Nodal diplacements: node_id, degree of freedom (1 - x, 2 - y), displacement
 bound = [
-%1 1 0
+1	1	0
 1	2	0
-33	2	0
+2	1	0
+2	2	0
 ];
 % Nodal loads: node_id, degree of freedom (1 - x, 2 - y), load
 loads = [
-18	2	-Pfinal
+41	1	-P_up
+42	1	-P_down
 ];
 % Control parameters
-plotdof = 2;
+plotdof = 5;

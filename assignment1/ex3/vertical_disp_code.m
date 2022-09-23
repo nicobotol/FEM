@@ -41,17 +41,13 @@ D = Kmatr \ Pmatr;                          % Solve system of equations
 %--- Print the results on the command window -----------------------------%
 vertical_load = P(36);
 vertical_D = D(36);
-EI48 = vertical_load * 80^3/(48 * vertical_D);
-EI32 = vertical_load * 80^3/(32 * vertical_D);
-P_critic48 = pi^2*EI48/80^2;
-P_critic32 = pi^2*EI32/80^2;
+EI = vertical_load * 80^3/(48 * vertical_D);
+P_critic = pi^2*EI/80^2;
 
 disp(strcat('External load P = ', num2str(vertical_load)))
 disp(strcat('Vertical displacement D = ', num2str(vertical_D)))
-disp(strcat('EIx (32) = ', num2str(EI32)))
-disp(strcat('EIx (48) = ', num2str(EI48)))
-disp(strcat('Critical load P (32) = ', num2str(P_critic32)))
-disp(strcat('Critical load P (48) = ', num2str(P_critic48)))
+disp(strcat('EIx = ', num2str(EI)))
+disp(strcat('Critical load P  = ', num2str(P_critic)))
 
 % % External matrix
 % disp('External forces applied (N)')
