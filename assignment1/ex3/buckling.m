@@ -106,7 +106,7 @@ end
 
 %--- Plot results --------------------------------------------------------%                                                        
 
-save('NR.mat', 'P_plot', 'D_plot');
+%save('NR.mat', 'P_plot', 'D_plot');
 
 PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 
@@ -118,6 +118,7 @@ plot(D_plot, P_plot, '-', 'LineWidth', 2.5)
 % build a vector with the name 
 xlabel("Displacement (m)")
 ylabel("Force (N)")
+yline(0.00299, '--r', 'Theoretical bouckling load', 'LineWidth',1.5)
 
 return
 

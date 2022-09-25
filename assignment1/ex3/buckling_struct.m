@@ -8,9 +8,9 @@ clear all;
 A = 2;  % cross section
 %incr_vector = [100];  % number of increment
 i_max = 1000; % maximum number of iterations
-nincr = 10; 
+nincr = 100; 
 eSTOP = 1e-8;
-Pfinal = 0.006;
+Pfinal = 0.004;
 
 % Node coordinates: x, y
 X = [

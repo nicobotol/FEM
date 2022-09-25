@@ -1,5 +1,5 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%  RUN OVER DIFFERENT NUMBER OF NODES WITH ONLY NEIGHBOR CONNECTIONS      %
+%  RUN OVER SAME NUMBER OF NODES WITH DIFFERENT CONNECTIVITY FACTORS      %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function fea()
@@ -9,15 +9,14 @@ clc
 
 %--- Input file ----------------------------------------------------------%
 file_vector = [ ...
-  "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh1.m", ...
-  "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh2.m" ...
-  "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh3.m" ...
-  "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh4.m" ...
-  "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh5.m" 
+  "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh2_30.m", ...
+  "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh2_50.m" ...
+  "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh2_70.m" ...
+  "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh2_90.m" 
   ];
 
 file_number = size(file_vector, 2);
-node_number_vector = [10 29 90 223 406]; % number of the node where the force is applied
+node_number_vector = [29 29 29 29]; % number of the node where the force is applied
 disp_vector = zeros(1, file_number); % vector of final displacements
 comple_vector = zeros(1, file_number);  % vector of final compliance
 total_nodes = zeros(1, file_number); % number of nodes of the structure
@@ -75,22 +74,23 @@ rho_old = zeros(ne,1);
 
 end
 %%
-%--- Plot results --------------------------------------------------------%                                                        
-compliance_vs_node_neighbor = figure('Position', get(0, 'Screensize'));
-plot(total_nodes, compl_vector, 'o', 'LineWidth', 3.5);
-xlabel('Nodes')
+%--- Plot results --------------------------------------------------------%    
+percentage_rate = [30 50 70 90];
+compliance_vs_percentage = figure('Position', get(0, 'Screensize'));
+plot(percentage_rate, compl_vector, 'o', 'LineWidth', 3.5);
+xlabel('Percentage ')
 ylabel('Compliance [J]')
-title('Compliance for only neighbor connections')
+title('Compliance for 71 nodes - different connection percentage')
 set(gca, 'FontAngle', 'oblique', 'FontSize', 20)
-saveas(compliance_vs_node_neighbor, 'C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\compliance_vs_node_neighbor.png','png');
+saveas(compliance_vs_percentage , 'C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\compliance_vs_percentage .png','png');
 
-displacement_vs_node_neighbor = figure('Position', get(0, 'Screensize'));
-plot(total_nodes, disp_vector, 'o', 'LineWidth', 3.5)
+displacement_vs_percentage  = figure('Position', get(0, 'Screensize'));
+plot(percentage_rate, disp_vector, 'o', 'LineWidth', 3.5)
 xlabel('Nodes')
 ylabel('Displacement [m]')
-title('Displacement for only neighbor connection')
+title('Displacement for 71 nodes - different connection percentage')
 set(gca, 'FontAngle', 'oblique', 'FontSize', 20)
-saveas(compliance_vs_node_neighbor, 'C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\compliance_vs_node_neighbor.png','png');
+saveas(displacement_vs_percentage, 'C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\displacement_vs_percentage.png','png');
 %%
 return
 

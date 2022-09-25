@@ -109,12 +109,13 @@ PlotStructure(X,IX,ne,neqn,bound,loads,D,stress)        % Plot structure
 [L0, ~, ~] = length(IX, X, 1);
 lin_space = linspace(0, 0.9);
 
-figure(2)
+force_vs_disp_ex3_3 = figure('Position', get(0, 'Screensize'));
 plot(D_plot, P_plot, '-', 'LineWidth', 2.5)
 xlabel("Displacement (m)")
 ylabel("Force (N)")
 legend('disp','Location','southeast')
-
+set(gca, 'FontAngle', 'oblique', 'FontSize', 20)
+saveas(force_vs_disp_ex3_3 , 'C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\force_vs_disp_ex3_3.png','png');
 return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
