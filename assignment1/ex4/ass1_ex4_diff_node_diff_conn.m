@@ -121,7 +121,7 @@ legend_vector = strings(1, node_item);
 
 for i =1:node_item
   plot(percentage_rate, compl_mat(i,:),  '-', 'LineWidth',1, 'Marker', '.', 'MarkerSize',35);
-  legend_vector(i) = strcat(num2str(total_nodes(i)), " nodes");
+  legend_vector(i) = strcat("Structure ", num2str(i), ": ", num2str(total_nodes(i)), " nodes");
   hold on
 end
 plot(percentage_rate, mesh4_results_complinace, '-',  'LineWidth',1, 'Marker', '.', 'MarkerSize',35);
@@ -129,7 +129,7 @@ grid on
 hold off
 xlabel('Connectivity [%]')
 ylabel('Compliance [J]')
-legend_vector(end + 1) = "537 nodes";
+legend_vector(end + 1) = "Structure 4: 537 nodes";
 legend(legend_vector)
 legend(legend_vector)
 title('Compliance for different nodes and connectivity radius', 'FontSize',16)

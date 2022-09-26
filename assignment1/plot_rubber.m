@@ -2,7 +2,7 @@ clear
 close all
 clc
 
-step_size = 0.5;
+step_size = 0.05;
 
 rubber_param = [  1.2 5 0.2 50; % material 1
                   0 1 0.2 200]; % material 2
