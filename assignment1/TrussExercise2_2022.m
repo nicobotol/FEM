@@ -8,7 +8,7 @@ close all
 clc
 
 %nincr=100;
-incr_vector=[100];
+incr_vector=[20 40 70 100 200 300];
 %incr_vector = [5:5:100];
 eSTOP=10^(-8);
 i_max=100;
@@ -201,8 +201,8 @@ IX = [
 55	54	1 ];
 
 % Element properties: [ E A c1 c2 c3 c4],
-mprop = [ 1.0 1.0 1.2 5 0.2 50 ]; % parameters for ex1 to 3
-%mprop = [ 1.0 1.0 0 1 0.2 200 ]; % parameters for ex 4
+%mprop = [ 1.0 1.0 1.2 5 0.2 50 ]; % parameters for ex1 to 3
+mprop = [ 1.0 1.0 0 1 0.2 200 ]; % parameters for ex 4
 
 
 

@@ -30,12 +30,11 @@ file_vector = [
   "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh\mesh3_70.m" ...
   "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh\mesh3_90.m"]
 
-%   ["C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh\mesh4.m", ...
-%   "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh\mesh4_30.m", ...
-%   "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh\mesh4_40.m", ...
-%   "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh\mesh4_50.m" ...
-%   "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh\mesh4_70.m" ...
-%   "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh\mesh4_90.m"]
+  ["C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh\mesh4_30.m", ...
+  "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh\mesh4_40.m", ...
+  "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh\mesh4_50.m" ...
+  "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh\mesh4_70.m" ...
+  "C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\ex4\mesh\mesh4_90.m"]
   ];
 
 
@@ -103,19 +102,19 @@ end
 
 %%
 %--- Plot results --------------------------------------------------------%  
-save("results_123", "compl_mat", "disp_mat", "total_nodes");
+save("results", "compl_mat", "disp_mat", "total_nodes");
 %%
 res = load("results.mat")
-%node_item = 3;
+node_item = 3;
 percentage_rate = [0 30 40 50 70 90];
 
 % % manually add results for mesh 4
 % mesh4_results_disp = [0.00923402 0.00683920, 0.00633002, 0.00691394, 0.00725176, 0.00636457]; % displacement of mesh 4
 % mesh4_results_complinace = [0.00009234 6.8392e-5, 6.3300e-5, 6.9139e-5, 7.2517e-5, 6.3646e-5]; % complinace of mesh 4
 
-mesh4_results_complinace = res.compl_mat;
+compl_mat = res.compl_mat;
 %disp_mat = res.disp_mat;
-%total_nodes = res.total_nodes;
+total_nodes = res.total_nodes;
 %compliance_vs_percentage_vs_node = figure('Position', get(0, 'Screensize'));
 compliance_vs_percentage_vs_node = figure('Color','White');
 legend_vector = strings(1, node_item);
@@ -130,10 +129,10 @@ grid on
 hold off
 xlabel('Connectivity [%]')
 ylabel('Compliance [J]')
-legend_vector(end + 1) = "Structure 4: 543 nodes";
+legend_vector(end + 1) = "Structure 4: 537 nodes";
 legend(legend_vector)
 legend(legend_vector)
-title('Compliance for different nodes and connectivity radii', 'FontSize',16)
+title('Compliance for different nodes and connectivity radius', 'FontSize',16)
 set(gca, 'FontAngle', 'oblique', 'FontSize', 14)
 saveas(compliance_vs_percentage_vs_node , 'C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment1\compliance_vs_percentage_vs_node.png','png');
 % 

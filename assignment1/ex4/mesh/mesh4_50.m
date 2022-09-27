@@ -5,7 +5,7 @@
 
 %clear all
 
-eta = 0.53;
+eta = 0.67;
 p = 1.5;
 V_star = 6;
 iopt_max = 100;

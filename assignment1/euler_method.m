@@ -60,9 +60,10 @@ for j = 1:size(incr_vector, 2)  % cycle over the different # of load incr
     [~, stress]=recover(mprop,X,IX,D,ne,rubber_param);
  
   end
-  
   [R] = residual(stress,ne,IX, X, P, D, mprop);
+  [~, R]=enforce(K,R,bound);       % Enforce boundary conditions
   residual_norm(j) = norm(R);
+  disp(residual_norm(end))
 
   % [strain, stress, ~, ~]=recover(mprop,X,IX,D,ne,strain,stress,P,rubber_param);
 end
