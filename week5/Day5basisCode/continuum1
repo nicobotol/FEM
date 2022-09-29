@@ -13,7 +13,8 @@
 ET,1,PLANE42
 ! Define material property: MP, property, card #, value
 MP,EX,1,  1.00000000    
-MP,PRXY,1, 0.300000000    
+!MP,PRXY,1, 0.300000000   
+MP,PRXY,1, 0.000000    
 MP,DENS,1,  1.00000000    
 ! Define nodal coordinate: N, node #, x-coord, y-coord, z-coord
 N,       1,  0.00000000    ,  0.00000000    , 0.

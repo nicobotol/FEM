@@ -219,7 +219,7 @@ contains
         bb = (xe(8)-xe(2))/2
 
         nface = 0
-        f = 0 ! initialize the vector to 0
+        f = 0 ! initialize the force vector to 0
         if (eface == 1) then
             nface(1,1) = aa
             nface(1,3) = aa
