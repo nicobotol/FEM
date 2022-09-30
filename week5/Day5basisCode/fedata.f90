@@ -122,6 +122,8 @@ module fedata
         !! * column 1: \(\sigma_{11}\)
         !! * column 2: \(\sigma_{22}\)
         !! * column 3: \(\sigma_{12}\)
+    real(wp), dimension(:), allocatable :: stress_vm
+        !! von mises stress
     real(wp), dimension(:),   allocatable :: p
         !! Force vector
     real(wp), dimension(:),   allocatable :: d

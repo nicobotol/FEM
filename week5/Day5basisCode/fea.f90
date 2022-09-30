@@ -39,10 +39,12 @@ contains
     end if
     allocate (p(neqn), d(neqn))
     allocate (strain(ne, 3), stress(ne, 3))
+    allocate (stress_vm(ne))
 
     ! Initial stress and strain
     strain = 0
     stress = 0
+    stress_vm = 0
   end subroutine initial
 !
 !--------------------------------------------------------------------------------------------------
@@ -71,10 +73,10 @@ contains
       ! Factor stiffness matrix
       call factor(kmat)
       ! Solve for displacement vector
-      !print'(f20.8)', p
-      
+      print'(f20.8)', p ! print load vector
+      print*, 'Ciao'
       call solve(kmat, p)
-      print'(f20.8)', p
+      print'(f20.8)', p ! print displcement vector
     else
       print *, 'ERROR in fea/displ'
       print *, 'Band form not implemented -- you need to add your own code here'
@@ -83,7 +85,7 @@ contains
 
     ! Transfer results
     d(1:neqn) = p(1:neqn)
-
+    
     ! Recover stress
     call recover
 
@@ -99,8 +101,7 @@ contains
       if (element(e)%id == 1) then
         plotval(e) = stress(e,1)
       else if (element(e)%id == 2) then
-        plotval(e) = 0
-        print *, 'WARNING in fea/displ: Plot value not set -- you need to add your own code here'
+        plotval(e) = stress_vm(e)
       end if
     end do
     call plotmatlabeval('Stresses',plotval)
@@ -129,7 +130,7 @@ contains
     ! Build load vector
     p(1:neqn) = 0
 
-    !initilize vector for distributed loads
+    ! initilize vector for distributed loads
     r = 0
 
     do i = 1, np
@@ -141,7 +142,7 @@ contains
         p(pos) = loads(i, 4) ! insert the load in p
       case( 2 )
         ! Build uniformly distributed surface (pressure) load contribution
-
+        
         ! Find coordinates and degrees of freedom
         e = loads(i, 2) ! number of the node where load is applied
         nen = element(e)%numnode ! number of the nodes of e
@@ -168,6 +169,7 @@ contains
         do j = 1, mdim
           r(edof(j)) = r(edof(j)) + re(j)
         end do
+        
         !print'(f20.8)', r ! remove, only placed for testing porpuses
         !print *, 'ERROR in fea/buildload'
         !print *, 'Distributed loads not defined -- you need to add your own code here'
@@ -237,7 +239,7 @@ contains
           young = mprop(element(e)%mat)%young
           nu = mprop(element(e)%mat)%nu
           thk = mprop(element(e)%mat)%thk
-
+          
           call plane42rect_ke(xe, young, nu, thk, ke)
             !print *, 'ERROR in fea/buildstiff:'
             !print *, 'Stiffness matrix for plane42rect elements not implemented -- you need to add your own code here'
@@ -296,9 +298,9 @@ contains
       stop
     end if
   end subroutine enforce
-!
-!--------------------------------------------------------------------------------------------------
-!
+  !
+  !--------------------------------------------------------------------------------------------------
+  !
   subroutine recover
 
     !! This subroutine recovers the element stress, element strain,
@@ -307,7 +309,7 @@ contains
     use fedata
     use link1
     use plane42rect
-
+    
     integer :: e, i, nen
     integer :: edof(mdim)
     real(wp), dimension(mdim) :: xe, de
@@ -316,12 +318,14 @@ contains
 ! Hint for continuum elements:
 !        real(wp):: nu, dens, thk
     real(wp), dimension(3) :: estrain, estress
-
+    real(wp) :: estress_vm
+    real(wp) :: nu
+    
     ! Reset force vector
     p = 0
-
+    
     do e = 1, ne
-
+      
       ! Find coordinates etc...
       nen = element(e)%numnode
       do i = 1,nen
@@ -332,7 +336,7 @@ contains
         de(2*i-1) = d(edof(2*i-1))
         de(2*i)   = d(edof(2*i))
       end do
-
+      
       ! Find stress and strain
       select case( element(e)%id )
       case( 1 )
@@ -342,12 +346,19 @@ contains
         p(edof(1:2*nen)) = p(edof(1:2*nen)) + matmul(ke(1:2*nen,1:2*nen), de(1:2*nen))
         call link1_ss(xe, de, young, estress, estrain)
         stress(e, 1:3) = estress
-        strain(e, 1:3) = estrain
+        strain(e, 1:3) = estrain 
       case( 2 )
-        print *, 'WARNING in fea/recover: Stress and strain not calculated for continuum' &
-          // 'elements -- you need to add your own code here'
+        young = mprop(element(e)%mat)%young
+        nu = mprop(element(e)%mat)%nu
+        call plane42rect_ss(xe, de, young, nu, estress, estrain, estress_vm)
+        stress(e, 1:3) = estress
+        strain(e, 1:3) = estrain
+        stress_vm(e) = estress_vm 
       end select
     end do
+    print*, 'Von mises stress'
+    print'(f20.8)', stress_vm ! print von mises stress vector
+    print*, 'End Von mises stress'
   end subroutine recover
 
 end module fea
