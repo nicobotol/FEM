@@ -6,7 +6,7 @@ TARGET = main
 
 FC = gfortran
 
-DEBUG = -Wall -Warray-temporaries -Wconversion -fimplicit-none -fbacktrace -ffree-line-length-0 -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan  -Wno-compare-reals
+DEBUG = -Wall -g -Warray-temporaries -Wconversion -fimplicit-none -fbacktrace -ffree-line-length-0 -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan  -Wno-compare-reals
 OPT = -O3
 FCFLAGS = -ffree-form  -Wall -Wconversion -fbounds-check
 FLFLAGS = -g
@@ -21,7 +21,7 @@ FFLAGS += -ffree-line-length-512
 all: $(TARGET)
 
 # Declare objects, in hierachical order
-OBJS = types.o fedata.o numeth.o processor.o link1.o plane42rect.o fea.o main.o
+OBJS = types.o fedata.o numeth.o processor.o link1.o build_matrix.o plane42rect.o fea.o main.o
 
 
 # Compile the objects based on their dependencies
@@ -51,14 +51,21 @@ link1.o:\
 	types.f90
 	$(FC) $(FCFLAGS) -c link1.f90
 
+build_matrix.o:\
+	build_matrix.f90
+	types.f90
+	$(FC) $(FCFLAGS) -c build_matrix.f90
+
 plane42rect.o:\
 	plane42rect.f90\
+	build_matrix.f90\
 	types.f90
 	$(FC) $(FCFLAGS) -c plane42rect.f90
 
 fea.o:\
 	fea.f90\
 	plane42rect.f90\
+	build_matrix.f90\
 	link1.f90\
 	processor.f90\
 	fedata.f90\
@@ -69,6 +76,7 @@ main.o:\
 	main.f90\
 	fea.f90\
 	plane42rect.f90\
+	build_matrix.f90\
 	link1.f90\
 	processor.f90\
 	fedata.f90\

@@ -73,9 +73,10 @@ contains
       ! Factor stiffness matrix
       call factor(kmat)
       ! Solve for displacement vector
+      print*, 'Print load vector p'
       print'(f20.8)', p ! print load vector
-      print*, 'Ciao'
       call solve(kmat, p)
+      print*, 'Print displacement vector'
       print'(f20.8)', p ! print displcement vector
     else
       print *, 'ERROR in fea/displ'
