@@ -31,9 +31,11 @@ contains
     ! Calculate number of equations
     neqn = 2*nn
 
+    ! allocate the stiffness matrix depending on the approac followed
     if (.not. banded) then
         allocate (kmat(neqn, neqn))
     else
+      ! compute the max band
       call bandwidth(bw)
       allocate (kb(12, neqn))
     end if
@@ -264,6 +266,7 @@ contains
       else
         do i = 1, 2*nen
           do j = 1, 2*nen
+            ! check wether we are on the lower part of the Kmat
             if (edof(i) >= edof(j)) then
               kb(edof(i)-edof(j)+1, edof(j)) = kb(edof(i)-edof(j)+1, edof(j)) + ke(i, j)
             end if
@@ -274,7 +277,7 @@ contains
         ! stop
       end if
     end do
-    print'(24f5.2)', transpose(kb)
+    ! print'(24f5.2)', transpose(kb)
   end subroutine buildstiff
 !
 !--------------------------------------------------------------------------------------------------
