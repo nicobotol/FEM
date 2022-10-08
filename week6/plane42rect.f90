@@ -257,7 +257,7 @@ contains
 !
     !--------------------------------------------------------------------------------------------------
     !
-    subroutine plane42rect_ss(xe, de, young, nu, estress, estrain, estress_vm)
+    subroutine plane42rect_ss(xe, de, young, nu, estress, estrain, estress_vm, estress_1, estress_2, psi)
       
     !! This subrotuine computes the element stress and strain (The location inside the element where stress and and strain is evaluated, is defined inside the subroutine).
       
@@ -282,14 +282,16 @@ contains
     real(wp), dimension(:), intent(out) :: estrain
       !! Strain at a point inside the element
     !!
-      !! * `estrain(1)` = \(\epsilon_{11}\)
+    !! * `estrain(1)` = \(\epsilon_{11}\)
     !! * `estrain(2)` = \(\epsilon_{22}\)
     !! * `estrain(3)` = \(\epsilon_{12}\)
+    real(wp), intent(out) :: estress_vm ! element von Mises stress
+    real(wp), intent(out) :: psi ! element principal direction
+    real(wp), intent(out) :: estress_1, estress_2 ! element principal stresses
     real(wp) :: bmat(3, 8), cmat(3, 3) 
     real(wp) :: fact, aa, bb
     real(wp) :: location(2) ! (x,y) where stress and strain are evaluated inside the element
-    real(wp) :: estress_1, estress_2 ! element principal stresses
-    real(wp), intent(out) :: estress_vm ! element von Mises stress
+    real(wp) :: c_2psi, s_2psi ! element principal directions
 
     aa = (xe(3)-xe(1))/2 ! x undeformed dimension
     bb = (xe(8)-xe(2))/2 ! y undeformed dimension
@@ -336,11 +338,17 @@ contains
     ! Compute element stress
     estress = matmul(cmat, estrain)
     
-    ! Compute principal stress and direction
+    ! Compute principal stress
     estress_1 = 0.5*(estress(1) + estress(2)) + (0.25*(estress(1) - estress(2))**2 + estress(3)**2)**0.5
 
     estress_2 = 0.5*(estress(1) + estress(2)) - (0.25*(estress(1) - estress(2))**2 + estress(3)**2)**0.5
     
+    ! Compute principal directions
+    c_2psi = (estress(1) - estress(2)) / (estress_1 - estress_2)
+    s_2psi = (-2*estress(3)) / (estress_1 - estress_2)
+    psi = 0.5*atan2(s_2psi, c_2psi)
+
+    ! Compute Von Mises quivalent stress
     estress_vm = (estress_1**2 + estress_2**2 - estress_1*estress_2)**0.5
 
   end subroutine plane42rect_ss

@@ -36,14 +36,17 @@ contains
         allocate (kmat(neqn, neqn))
     else
       ! compute the max band
-      call bandwidth(bw)
-      allocate (kb(12, neqn))
+      call bandwidth(bw, ne)
+      print*, bw
+      ! allocate the memory for banded stiffness matrix
+      allocate (kb(bw, neqn))
     end if
     allocate (p(neqn), d(neqn))
     allocate (strain(ne, 3), stress(ne, 3))
     allocate (stress_vm(ne))
-
     ! Initial stress and strain
+    allocate (principal_stresses(ne, 3)) 
+    ! principal stresses and direction
     strain = 0
     stress = 0
     stress_vm = 0
@@ -58,7 +61,7 @@ contains
     use fedata
     use numeth
     use processor
-
+ 
     integer :: e
     real(wp), dimension(:), allocatable :: plotval
 
@@ -82,7 +85,6 @@ contains
      ! print'(f20.8)', p ! print displcement vector
     else
       call bfactor(kb)
-
       call bsolve(kb, p)
       ! print *, 'ERROR in fea/displ'
       ! print *, 'Band form not implemented -- you need to add your own code here'
@@ -111,7 +113,8 @@ contains
       end if
     end do
     call plotmatlabeval('Stresses',plotval)
-
+    ! print the principal stresses and direction
+    call plotmatlabevec('Principal stresses and directions', principal_stresses(:, 1), principal_stresses(:, 2), principal_stresses(:, 3))
   end subroutine displ
 !
 !--------------------------------------------------------------------------------------------------
@@ -223,8 +226,6 @@ contains
       ! stop
     end if
     
-    
-    
     do e = 1, ne
 
       ! Find coordinates and degrees of freedom
@@ -288,8 +289,11 @@ contains
 
     use fedata
 
-    integer :: i, idof
+    integer :: i, idof, j
     real(wp) :: penal
+
+    ! print'(24f5.2)', transpose(kb)
+    ! print*, 'pausa'
 
     ! Correct for supports
     if (.not. banded) then
@@ -311,10 +315,23 @@ contains
         end do
       end if
     else
-      print *, 'ERROR in fea/enforce'
-      print *, 'Band form not implemented -- you need to add your own code here'
-      stop
+      do i = 1, nb
+        idof = 0
+        idof = int(2*(bound(i,1)-1) + bound(i,2))
+          do j = 2, bw
+            kb(j, idof) = 0 ! wite 0 on the column
+            if ((j <= idof)) then
+              kb(j, idof - j + 1) = 0 ! write 0 on the diagonal
+            end if
+          end do
+        kb(1, idof) = 1 ! write 1 in the first row
+        p(idof) = 0 ! enforce boundary on p
+      end do
+      ! print *, 'ERROR in fea/enforce'
+      ! print *, 'Band form not implemented -- you need to add your own code here'
+      ! stop
     end if
+    !print'(24f6.3)', transpose(kb)
   end subroutine enforce
   !
   !--------------------------------------------------------------------------------------------------
@@ -336,7 +353,7 @@ contains
 ! Hint for continuum elements:
 !        real(wp):: nu, dens, thk
     real(wp), dimension(3) :: estrain, estress
-    real(wp) :: estress_vm
+    real(wp) :: estress_vm, estress_1, estress_2, psi
     real(wp) :: nu
     
     ! Reset force vector
@@ -368,10 +385,15 @@ contains
       case( 2 )
         young = mprop(element(e)%mat)%young
         nu = mprop(element(e)%mat)%nu
-        call plane42rect_ss(xe, de, young, nu, estress, estrain, estress_vm)
+        call plane42rect_ss(xe, de, young, nu, estress, estrain, estress_vm, estress_1, estress_2, psi)
         stress(e, 1:3) = estress
         strain(e, 1:3) = estrain
         stress_vm(e) = estress_vm 
+        ! store principal stresses and direction
+        principal_stresses(e, 1) = estress_1
+        principal_stresses(e, 2) = estress_2
+        principal_stresses(e, 3) = psi
+
       end select
     end do
     print*, 'Von mises stress'

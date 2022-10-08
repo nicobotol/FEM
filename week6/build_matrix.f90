@@ -28,10 +28,11 @@ module build_matrix
     end subroutine
     
     !! This subroutine computes the bandwidth of the matrix
-    subroutine bandwidth(bw)
+    subroutine bandwidth(bw, ne)
       
-      integer :: max_diff, nen, i, e, ne
+      integer :: max_diff, nen, i, e
       integer, dimension(mdim) :: edof
+      integer, intent(in) :: ne
       integer, intent(out) :: bw
 
       max_diff = 0

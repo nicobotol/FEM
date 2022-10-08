@@ -126,6 +126,13 @@ module fedata
         !! * column 3: \(\sigma_{12}\)
     real(wp), dimension(:), allocatable :: stress_vm
         !! von mises stress
+    real(wp), dimension(:,:), allocatable :: principal_stresses
+        !! principal stress and direction
+        !! 
+        !! * _i_-th row: stressesa and direction in element _i_
+        !! * column 1: \(\sigma_1\)
+        !! * column 2: \(\sigma_2\)
+        !! * column 3: psi
     real(wp), dimension(:),   allocatable :: p
         !! Force vector
     real(wp), dimension(:),   allocatable :: d
