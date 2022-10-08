@@ -14,7 +14,7 @@ ET,1,PLANE42
 ! Define material property: MP, property, card #, value
 MP,EX,1,  1.00000000    
 !MP,PRXY,1, 0.300000   
-MP,PRXY,1, 0.000000    
+MP,PRXY,1, 0.3000000    
 MP,DENS,1,  1.00000000    
 ! Define nodal coordinate: N, node #, x-coord, y-coord, z-coord
 N,       1,  0.00000000    ,  0.00000000    , 0.
@@ -57,13 +57,13 @@ EN,       6,       7,       8,     12,       11
 ! Define boundary support conditions: D, node #, dof label, value
 D,       1,UX,     0.000000000
 D,       1,UY,     0.000000000
-D,       2,UX,     0.000000000
-D,       2,UY,     0.000000000
-D,       3,UX,     0.000000000
-D,       3,UY,     0.000000000 
+D,       5,UX,     0.000000000
+D,       5,UY,     0.000000000
+D,       9,UX,     0.000000000
+D,       9,UY,     0.000000000 
 ! Define nodal load conditions: F, node #, dof label, value
-F,       4,FX,     2.000000000
-F,       8,FX,     1.000000000
+F,       4,FX,     1.000000000
+F,       8,FX,     2.000000000
 F,       12,FX,     1.000000000
 ! Define surface load conditions: SFE, element #, face #, PRES, 0, value
 !SFE, 5, 2, PRES, 0, -1
