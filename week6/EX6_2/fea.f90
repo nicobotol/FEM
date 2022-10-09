@@ -37,7 +37,7 @@ contains
     else
       ! compute the max band
       call bandwidth(bw, ne)
-      print*, bw
+      !print*, bw
       ! allocate the memory for banded stiffness matrix
       allocate (kb(bw, neqn))
     end if
@@ -65,7 +65,7 @@ contains
  
     integer :: e
     real(wp), dimension(:), allocatable :: plotval
-
+    real(wp) :: h, h_2
     ! Build load-vector
     call buildload
 
@@ -78,19 +78,30 @@ contains
     if (.not. banded) then
       ! Factor stiffness matrix
       call factor(kmat)
-      ! Solve for displacement vector
+
       print*, 'Print load vector p'
       print'(f20.8)', p ! print load vector
       print*, 'stop load vector'
+
+      ! Solve for displacement vector
       call solve(kmat, p)
+      
       !print*, 'Print displacement vector'
-     ! print'(f20.8)', p ! print displcement vector
+      !print'(f20.8)', p ! print displcement vector
     else
       call bfactor(kb)
-      print*, 'Print load vector p'
-      print'(f20.8)', p ! print load vector
-      print*, 'stop load vector'
+      
+      ! print*, 'Print load vector p'
+      ! print'(f20.8)', p ! print load vector
+      ! print*, 'stop load vector'
+      ! print*, 'Force on a node'
+      ! print*, p(12)
+      ! print*, 'kb'
+      ! print'(4f6.2,tr1)', transpose(kb)
+      ! Solve for displacement vector
       call bsolve(kb, p)
+      ! print*, 'Print the displacement'
+      ! print*, p(210)
       ! print *, 'ERROR in fea/displ'
       ! print *, 'Band form not implemented -- you need to add your own code here'
       ! stop
@@ -120,7 +131,17 @@ contains
     call plotmatlabeval('Stresses',plotval)
     ! print the principal stresses and direction
     call plotmatlabevec('Principal', principal_stresses(:, 1), principal_stresses(:, 2), principal_stresses(:, 3))
-    print'(3f6.2,tr1)', transpose(principal_stresses)
+    !print'(3f6.2,tr1)', transpose(principal_stresses)
+
+    ! print on file
+
+    ! element size and its square
+    h = x(element(1)%ix(2),1) - x(element(1)%ix(1),1)
+    h_2 = h**2
+    open(unit = 11, file = "test_results.txt", position = "append")
+    ! name of the file, stress B, displacement B, element size, square element size
+    write(11, '(a a e8.2 a e8.2 a e8.2 a e8.2)' ) trim(filename), ',', stress_vm(72), ',', d(156), ',',  h, ',', h_2
+    close(11)
   end subroutine displ
 !
 !--------------------------------------------------------------------------------------------------
@@ -380,7 +401,7 @@ contains
       
       ! Find stress and strain
       select case( element(e)%id )
-      case( 1 )
+      case( 1 ) ! thruss struct
         young = mprop(element(e)%mat)%young
         area  = mprop(element(e)%mat)%area
         call link1_ke(xe, young, area, ke)
@@ -388,7 +409,7 @@ contains
         call link1_ss(xe, de, young, estress, estrain)
         stress(e, 1:3) = estress
         strain(e, 1:3) = estrain 
-      case( 2 )
+      case( 2 ) ! continuum
         young = mprop(element(e)%mat)%young
         nu = mprop(element(e)%mat)%nu
         call plane42rect_ss(xe, de, young, nu, estress, estrain, estress_vm, estress_1, estress_2, psi)
@@ -402,9 +423,14 @@ contains
 
       end select
     end do
-    print*, 'Von mises stress'
-    print'(f20.8)', stress_vm ! print von mises stress vector
-    print*, 'End Von mises stress'
+    print*, 'Von mises stress for point A'
+    print*, stress_vm(12)
+    print*, 'Von mises stress for point B'
+    print*, stress_vm(60)
+
+    !print*, 'Von mises stress'
+    !print'(f20.8)', stress_vm ! print von mises stress vector
+    !print*, 'End Von mises stress'
   end subroutine recover
 
 end module fea

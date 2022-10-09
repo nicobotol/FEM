@@ -192,6 +192,7 @@ contains
       ke(8,8) = t106
       
       ke = ke*thk
+
     end subroutine plane42rect_ke
 !
     !--------------------------------------------------------------------------------------------------
@@ -249,9 +250,11 @@ contains
         nface(2,8) = bb
         f(1) = fe
       endif
-      
-      re = matmul(transpose(nface), f) 
-      re = re * thk
+
+      ! print*, 'The thk for the element is'
+      ! print*, thk
+      re = matmul(transpose(nface), f) * thk
+
       !print *, 'ERROR in plane42rect/plane42rect_re'
       !print *, 'subroutine incomplete -- you need to add some code in this subroutine'
       !stop
@@ -300,7 +303,6 @@ contains
     
     location(1) = -aa ! x coord. where stress-strain is evaluated
     location(2) = bb ! y coord. where stress-strain is evaluated
-    
     
     ! Build strain-displacement matrix
     bmat = 0
