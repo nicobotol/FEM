@@ -36,6 +36,12 @@ EN,       9,        5,      6
 D,       1,UX,     0.000000000
 D,       1,UY,     0.000000000
 D,       2,UX,     0.000000000
+D,       2,UY,     0.000000000
+
 ! Define load conditions: F, node #, dof label, value
-F,       5,FY,    -.01000000000
+!F,       5,FY,    -.01000000000
+
+! Surface loads
+SFE, 1, 1, PRESS, 0, -3
+SFE, 2, 1, PRESS, 0, -3
 FINISH

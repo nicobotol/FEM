@@ -119,7 +119,7 @@ N,	105,	5,	1,	0
 ! Material:             'MP', property_id, material_id, value 
 ! Custom property:      'R',  property_id, value 
 ! Material 1
-MP,	EX,  	1,	1
+MP,	EX,   1,	1
 MP,	EY,  	1,	0
 MP,	GXY, 	1,	0
 MP,	PRXY,	1,	0
