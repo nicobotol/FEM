@@ -140,7 +140,7 @@ contains
     h_2 = h**2
     open(unit = 11, file = "test_results.txt", position = "append")
     ! name of the file, stress B, displacement B, element size, square element size
-    write(11, '(a a e8.2 a e8.2 a e8.2 a e8.2)' ) trim(filename), ',', stress_vm(72), ',', d(156), ',',  h, ',', h_2
+    write(11, '(a a e9.3 a e9.3 a e9.3 a e9.3)' ) trim(filename), ',', stress_vm(40), ',', d(2), ',',  h, ',', h_2
     close(11)
   end subroutine displ
 !
