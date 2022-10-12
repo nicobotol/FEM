@@ -219,6 +219,7 @@ contains
         !! * `re(3:4)` = \((f_x^2, f_y^2)\) force at element node 1 in \(x\)- and y-direction
         !! * etc...
       real(wp) :: aa, bb, nface(2,8), f(2)
+      real(wp), dimension(8):: temp
 
       aa = (xe(3)-xe(1))/2
       bb = (xe(8)-xe(2))/2
@@ -253,7 +254,8 @@ contains
 
       ! print*, 'The thk for the element is'
       ! print*, thk
-      re = matmul(transpose(nface), f) * thk
+      temp = matmul(transpose(nface), f) 
+      re = temp * thk
 
       !print *, 'ERROR in plane42rect/plane42rect_re'
       !print *, 'subroutine incomplete -- you need to add some code in this subroutine'
@@ -294,7 +296,7 @@ contains
     real(wp), intent(out) :: psi ! element principal direction
     real(wp), intent(out) :: estress_1, estress_2 ! element principal stresses
     real(wp) :: bmat(3, 8), cmat(3, 3) 
-    real(wp) :: fact, aa, bb
+    real(wp) :: aa, bb
     real(wp) :: location(2) ! (x,y) where stress and strain are evaluated inside the element
     real(wp) :: c_2psi, s_2psi ! element principal directions
 

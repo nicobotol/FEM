@@ -7,7 +7,7 @@ TARGET = main
 FC = gfortran
 
 # DEBUG = -Wall -Warray-temporaries -Wconversion -fimplicit-none -fbacktrace -ffree-line-length-0 -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan  -Wno-compare-reals
-DEBUG = -Wall -g -Warray-temporaries -Wconversion -fimplicit-none -fbacktrace -ffree-line-length-0 -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan  -Wno-compare-reals
+DEBUG = -Wall -fbounds-check -Warray-temporaries -Wconversion -fimplicit-none -fbacktrace -ffree-line-length-0 -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan  -Wno-compare-reals
 OPT = -O3
 FCFLAGS = -ffree-form  -Wall -Wconversion -fbounds-check
 FLFLAGS = -g

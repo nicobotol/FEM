@@ -122,7 +122,7 @@ N,	105,	5,	1,	0
 MP,	EX,   1,	1
 MP,	EY,  	1,	0
 MP,	GXY, 	1,	0
-MP,	PRXY,	1,	0
+MP,	PRXY,	1,	0.000001
 MP,	DENS,	1,	1
 R, 	1,	0.25
 ! Connectivity

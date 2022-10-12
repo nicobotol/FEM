@@ -20,10 +20,10 @@ contains
     use link1
     use plane42rect
     use build_matrix
-    
+
 ! Hint for continuum elements:
        !integer, parameter :: mdim = 8
-       
+
 
     ! This subroutine computes the number of global equation,
     ! half bandwidth, etc and allocates global arrays.
@@ -45,7 +45,7 @@ contains
     allocate (strain(ne, 3), stress(ne, 3))
     allocate (stress_vm(ne))
     ! Initial stress and strain
-    allocate (principal_stresses(ne, 3)) 
+    allocate (principal_stresses(ne, 3))
     ! principal stresses and direction
     strain = 0
     stress = 0
@@ -62,10 +62,11 @@ contains
     use fedata
     use numeth
     use processor
- 
+
     integer :: e
     real(wp), dimension(:), allocatable :: plotval
     real(wp) :: h, h_2
+    ! real(wp) :: minv
     ! Build load-vector
     call buildload
 
@@ -79,18 +80,14 @@ contains
       ! Factor stiffness matrix
       call factor(kmat)
 
-      print*, 'Print load vector p'
-      print'(f20.8)', p ! print load vector
-      print*, 'stop load vector'
-
       ! Solve for displacement vector
       call solve(kmat, p)
-      
+
       !print*, 'Print displacement vector'
       !print'(f20.8)', p ! print displcement vector
     else
       call bfactor(kb)
-      
+
       ! print*, 'Print load vector p'
       ! print'(f20.8)', p ! print load vector
       ! print*, 'stop load vector'
@@ -109,7 +106,7 @@ contains
 
     ! Transfer results
     d(1:neqn) = p(1:neqn)
-    
+
     ! Recover stress
     call recover
 
@@ -138,9 +135,13 @@ contains
     ! element size and its square
     h = x(element(1)%ix(2),1) - x(element(1)%ix(1),1)
     h_2 = h**2
+    if ( .not. banded) then
+      bw = 0
+    end if
     open(unit = 11, file = "test_results.txt", position = "append")
-    ! name of the file, stress B, displacement B, element size, square element size
-    write(11, '(a a e9.3 a e9.3 a e9.3 a e9.3)' ) trim(filename), ',', stress_vm(40), ',', d(2), ',',  h, ',', h_2
+    ! name of the file, stress B, displacement B, element size, square element size, bandwidth
+  !  write(11, '(a a e9.3 a e9.3 a e9.3 a e9.3 a i3)' ) trim(filename), ',', stress_vm(420), ',', d(882), ',', h, ',', h_2, ',', bw
+    write(11, '(a a e9.3 a e9.3 a e9.3 a e9.3 a i3)' ) trim(filename), ',', stress_vm(1), ',', d(2), ',', h, ',', h_2, ',', bw
     close(11)
   end subroutine displ
 !
@@ -161,7 +162,7 @@ contains
     real(wp), dimension(neqn) :: r
     real(wp) :: fe ! value of the pressure applied to the face
     real(wp) :: thk
-    real(wp) :: node, pos, e
+    integer :: node, pos, e
 
     ! Build load vector
     p(1:neqn) = 0
@@ -173,14 +174,14 @@ contains
       select case(int(loads(i, 1)))
       case( 1 )
         ! Build nodal load contribution
-        node = loads(i, 2) ! node number
-        pos = node*2 - (2 - loads(i, 3)) ! position of the load in p
-        p(pos) = loads(i, 4) ! insert the load in p
+        node = int(loads(i, 2)) ! node number
+        pos = node*2 - (2 - int(loads(i, 3))) ! position of the load in p
+        p(pos) = int(loads(i, 4)) ! insert the load in p
       case( 2 )
         ! Build uniformly distributed surface (pressure) load contribution
-        
+
         ! Find coordinates and degrees of freedom
-        e = loads(i, 2) ! number of the node where load is applied
+        e = int(loads(i, 2)) ! number of the node where load is applied
         nen = element(e)%numnode ! number of the nodes of e
         do j = 1, nen
           xe(2*j-1) = x(element(e)%ix(j),1)
@@ -188,24 +189,26 @@ contains
           edof(2*j-1) = 2 * element(e)%ix(j) - 1
           edof(2*j)   = 2 * element(e)%ix(j)
         end do
-        
+
         ! face of the element where load is applied
-        eface = loads(i, 3)
-        
+        eface = int(loads(i, 3))
+
         ! value of the pressure applied to the face
         fe = loads(i, 4)
 
         ! thickness where load is applied
-        thk = mprop(element(e)%mat)%thk 
-
+        thk = mprop(element(e)%mat)%thk
+        
+    print*, mprop(element(1)%mat)%nu
+   ! pause
         ! build re
         call plane42rect_re(xe, eface, fe, thk, re)
-             
+
         ! combine re in r vector
         do j = 1, mdim
           r(edof(j)) = r(edof(j)) + re(j)
         end do
-        
+
         !print'(f20.8)', r ! remove, only placed for testing porpuses
         !print *, 'ERROR in fea/buildload'
         !print *, 'Distributed loads not defined -- you need to add your own code here'
@@ -243,7 +246,7 @@ contains
     ! Hint for modal analysis and continuum elements:
     !        real(wp) :: nu, dens, thk
 
-    ! Reset stiffness matrix    
+    ! Reset stiffness matrix
     if (.not. banded) then
       kmat = 0
     else
@@ -252,7 +255,7 @@ contains
       ! print*,'Band form not implemented -- you need to add your own code here'
       ! stop
     end if
-    
+
     do e = 1, ne
 
       ! Find coordinates and degrees of freedom
@@ -271,11 +274,11 @@ contains
           area  = mprop(element(e)%mat)%area
           call link1_ke(xe, young, area, ke)
         case( 2 )
-              
+
           young = mprop(element(e)%mat)%young
           nu = mprop(element(e)%mat)%nu
           thk = mprop(element(e)%mat)%thk
-          
+
           call plane42rect_ke(xe, young, nu, thk, ke)
             !print *, 'ERROR in fea/buildstiff:'
             !print *, 'Stiffness matrix for plane42rect elements not implemented -- you need to add your own code here'
@@ -289,7 +292,7 @@ contains
             kmat(edof(i), edof(j)) = kmat(edof(i), edof(j)) + ke(i, j)
           end do
         end do
-        
+
         ! Hint: Can you eliminate the loops above by using a different Fortran array syntax?
       else
         do i = 1, 2*nen
@@ -332,6 +335,8 @@ contains
           kmat(1:neqn, idof) = 0
           kmat(idof, 1:neqn) = 0
           kmat(idof, idof) = 1
+
+          !print*,bound(i,:)
         end do
       else
         penal = penalty_fac*maxval(kmat)
@@ -359,6 +364,7 @@ contains
       ! stop
     end if
     !print'(24f6.3)', transpose(kb)
+
   end subroutine enforce
   !
   !--------------------------------------------------------------------------------------------------
@@ -371,7 +377,7 @@ contains
     use fedata
     use link1
     use plane42rect
-    
+
     integer :: e, i, nen
     integer :: edof(mdim)
     real(wp), dimension(mdim) :: xe, de
@@ -382,12 +388,13 @@ contains
     real(wp), dimension(3) :: estrain, estress
     real(wp) :: estress_vm, estress_1, estress_2, psi
     real(wp) :: nu
-    
+    real(wp), dimension(neqn) :: temp 
+
     ! Reset force vector
     p = 0
-    
+
     do e = 1, ne
-      
+
       ! Find coordinates etc...
       nen = element(e)%numnode
       do i = 1,nen
@@ -398,24 +405,25 @@ contains
         de(2*i-1) = d(edof(2*i-1))
         de(2*i)   = d(edof(2*i))
       end do
-      
+
       ! Find stress and strain
       select case( element(e)%id )
       case( 1 ) ! thruss struct
         young = mprop(element(e)%mat)%young
         area  = mprop(element(e)%mat)%area
         call link1_ke(xe, young, area, ke)
-        p(edof(1:2*nen)) = p(edof(1:2*nen)) + matmul(ke(1:2*nen,1:2*nen), de(1:2*nen))
+        temp = matmul(ke(1:2*nen,1:2*nen), de(1:2*nen))
+        p(edof(1:2*nen)) = p(edof(1:2*nen)) + temp
         call link1_ss(xe, de, young, estress, estrain)
         stress(e, 1:3) = estress
-        strain(e, 1:3) = estrain 
+        strain(e, 1:3) = estrain
       case( 2 ) ! continuum
         young = mprop(element(e)%mat)%young
         nu = mprop(element(e)%mat)%nu
         call plane42rect_ss(xe, de, young, nu, estress, estrain, estress_vm, estress_1, estress_2, psi)
         stress(e, 1:3) = estress
         strain(e, 1:3) = estrain
-        stress_vm(e) = estress_vm 
+        stress_vm(e) = estress_vm
         ! store principal stresses and direction
         principal_stresses(e, 1) = estress_1
         principal_stresses(e, 2) = estress_2
@@ -424,9 +432,9 @@ contains
       end select
     end do
     print*, 'Von mises stress for point A'
-    print*, stress_vm(12)
+    print*, stress_vm(4)
     print*, 'Von mises stress for point B'
-    print*, stress_vm(60)
+    print*, stress_vm(25)
 
     !print*, 'Von mises stress'
     !print'(f20.8)', stress_vm ! print von mises stress vector
