@@ -52,7 +52,6 @@ contains
           !!
           !! See also [[plane42rect]]
       real(wp), dimension(:,:), intent(out) :: ke
- 
           !! Stiffness matrix
 
       ! real(wp) :: fact, aa, bb
@@ -193,6 +192,7 @@ contains
       ke(8,8) = t106
       
       ke = ke*thk
+
     end subroutine plane42rect_ke
 !
     !--------------------------------------------------------------------------------------------------
@@ -213,19 +213,19 @@ contains
       real(wp), dimension(:), intent(in) :: xe
       !! Nodal coordinates of this element in undeformed configuration (see also [[plane42rect_ke]])
       real(wp), intent(out) :: re(8)
-      real(wp), dimension(8) :: mul
       !! Element force vector
         !!
         !! * `re(1:2)` = \((f_x^1, f_y^1)\) force at element node 1 in \(x\)- and y-direction
         !! * `re(3:4)` = \((f_x^2, f_y^2)\) force at element node 1 in \(x\)- and y-direction
         !! * etc...
       real(wp) :: aa, bb, nface(2,8), f(2)
+      real(wp), dimension(8):: temp = 0.0
 
       aa = (xe(3)-xe(1))/2
       bb = (xe(8)-xe(2))/2
       
-      nface = 0
-      f = 0 ! initialize the force vector to 0
+      nface = 0.0
+      f = 0.0 ! initialize the force vector to 0
       if (eface == 1) then
         nface(1,1) = aa
         nface(1,3) = aa
@@ -238,21 +238,25 @@ contains
         nface(2,4) = bb
         nface(2,6) = bb
         f(1) = -fe
-        elseif (eface == 3) then
+      elseif (eface == 3) then
         nface(1,5) = aa
         nface(1,7) = aa
         nface(2,6) = aa
         nface(2,8) = aa
         f(2) = -fe
-        elseif (eface == 4) then
-          nface(1,1) = bb
+      elseif (eface == 4) then
+        nface(1,1) = bb
         nface(1,7) = bb
         nface(2,2) = bb
         nface(2,8) = bb
         f(1) = fe
       endif
-      mul = matmul(transpose(nface), f) 
-      re = mul * thk
+
+      ! print*, 'The thk for the element is'
+      ! print*, thk
+      temp = matmul(transpose(nface), f) 
+      re = temp * thk
+
       !print *, 'ERROR in plane42rect/plane42rect_re'
       !print *, 'subroutine incomplete -- you need to add some code in this subroutine'
       !stop
@@ -260,7 +264,7 @@ contains
 !
     !--------------------------------------------------------------------------------------------------
     !
-    subroutine plane42rect_ss(xe, de, young, nu, estress, estrain, estress_vm)
+    subroutine plane42rect_ss(xe, de, young, nu, estress, estrain, estress_vm, estress_1, estress_2, psi)
       
     !! This subrotuine computes the element stress and strain (The location inside the element where stress and and strain is evaluated, is defined inside the subroutine).
       
@@ -285,21 +289,22 @@ contains
     real(wp), dimension(:), intent(out) :: estrain
       !! Strain at a point inside the element
     !!
-      !! * `estrain(1)` = \(\epsilon_{11}\)
+    !! * `estrain(1)` = \(\epsilon_{11}\)
     !! * `estrain(2)` = \(\epsilon_{22}\)
     !! * `estrain(3)` = \(\epsilon_{12}\)
+    real(wp), intent(out) :: estress_vm ! element von Mises stress
+    real(wp), intent(out) :: psi ! element principal direction
+    real(wp), intent(out) :: estress_1, estress_2 ! element principal stresses
     real(wp) :: bmat(3, 8), cmat(3, 3) 
     real(wp) :: aa, bb
     real(wp) :: location(2) ! (x,y) where stress and strain are evaluated inside the element
-    real(wp) :: estress_1, estress_2 ! element principal stresses
-    real(wp), intent(out) :: estress_vm ! element von Mises stress
+    real(wp) :: c_2psi, s_2psi ! element principal directions
 
     aa = (xe(3)-xe(1))/2 ! x undeformed dimension
     bb = (xe(8)-xe(2))/2 ! y undeformed dimension
     
-    location(1) = 0 ! x coord. where stress-strain is evaluated
-    location(2) = 0 ! y coord. where stress-strain is evaluated
-    
+    location(1) = -aa ! x coord. where stress-strain is evaluated
+    location(2) = bb ! y coord. where stress-strain is evaluated
     
     ! Build strain-displacement matrix
     bmat = 0
@@ -339,11 +344,17 @@ contains
     ! Compute element stress
     estress = matmul(cmat, estrain)
     
-    ! Compute principal stress and direction
+    ! Compute principal stress
     estress_1 = 0.5*(estress(1) + estress(2)) + (0.25*(estress(1) - estress(2))**2 + estress(3)**2)**0.5
 
     estress_2 = 0.5*(estress(1) + estress(2)) - (0.25*(estress(1) - estress(2))**2 + estress(3)**2)**0.5
     
+    ! Compute principal directions
+    c_2psi = (estress(1) - estress(2)) / (estress_1 - estress_2)
+    s_2psi = (-2*estress(3)) / (estress_1 - estress_2)
+    psi = 0.5*atan2(s_2psi, c_2psi)
+
+    ! Compute Von Mises quivalent stress
     estress_vm = (estress_1**2 + estress_2**2 - estress_1*estress_2)**0.5
 
   end subroutine plane42rect_ss

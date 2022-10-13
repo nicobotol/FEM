@@ -63,9 +63,12 @@ contains
     use numeth
     use processor
 
-    integer :: e
+    integer :: e, i
     real(wp), dimension(:), allocatable :: plotval
     real(wp) :: h, h_2
+    real(wp) :: x_pos, y_pos ! coordinates of the point that must be investigated
+    integer :: node_3_number ! node where compute the displacement
+  
     ! real(wp) :: minv
     ! Build load-vector
     call buildload
@@ -88,20 +91,7 @@ contains
     else
       call bfactor(kb)
 
-      ! print*, 'Print load vector p'
-      ! print'(f20.8)', p ! print load vector
-      ! print*, 'stop load vector'
-      ! print*, 'Force on a node'
-      ! print*, p(12)
-      ! print*, 'kb'
-      ! print'(4f6.2,tr1)', transpose(kb)
-      ! Solve for displacement vector
       call bsolve(kb, p)
-      ! print*, 'Print the displacement'
-      ! print*, p(210)
-      ! print *, 'ERROR in fea/displ'
-      ! print *, 'Band form not implemented -- you need to add your own code here'
-      ! stop
     end if
 
     ! Transfer results
@@ -135,13 +125,26 @@ contains
     ! element size and its square
     h = x(element(1)%ix(2),1) - x(element(1)%ix(1),1)
     h_2 = h**2
-    if ( .not. banded) then
+
+    ! if not banded form imlemented then bandwith is 0
+    if ( .not. banded) then 
       bw = 0
     end if
+
+    x_pos = 1.0
+    y_pos = 1.0
+    do i = 1, ne
+      if( (x(element(i)%ix(3), 1) == x_pos) .and. (x(element(i)%ix(4), 1) == x_pos - h) .and. (x(element(i)%ix(3), 2) == y_pos) .and. (x(element(i)%ix(2), 2) == y_pos - h) ) then
+        exit
+      end if
+    end do
+
+    node_3_number = int(element(i)%ix(3)) ! node number where compute the displacement
+
     open(unit = 11, file = "test_results.txt", position = "append")
     ! name of the file, stress B, displacement B, element size, square element size, bandwidth
   !  write(11, '(a a e9.3 a e9.3 a e9.3 a e9.3 a i3)' ) trim(filename), ',', stress_vm(420), ',', d(882), ',', h, ',', h_2, ',', bw
-    write(11, '(a a e9.3 a e9.3 a e9.3 a e9.3 a i3)' ) trim(filename), ',', stress_vm(1), ',', d(2), ',', h, ',', h_2, ',', bw
+    write(11, '(a a e9.3 a e9.3 a e9.3 a e9.3 a i3)' ) trim(filename), ',', stress_vm(i), ',', d(node_3_number * 2), ',', h, ',', h_2, ',', bw
     close(11)
   end subroutine displ
 !
@@ -199,7 +202,7 @@ contains
         ! thickness where load is applied
         thk = mprop(element(e)%mat)%thk
         
-    print*, mprop(element(1)%mat)%nu
+    
    ! pause
         ! build re
         call plane42rect_re(xe, eface, fe, thk, re)

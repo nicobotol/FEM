@@ -19,10 +19,11 @@ contains
     use fedata
     use link1
     use plane42rect
+    use build_matrix
 
 ! Hint for continuum elements:
-!        integer, parameter :: mdim = 8
-!        integer, dimension(mdim) :: edof
+       !integer, parameter :: mdim = 8
+
 
     ! This subroutine computes the number of global equation,
     ! half bandwidth, etc and allocates global arrays.
@@ -30,21 +31,26 @@ contains
     ! Calculate number of equations
     neqn = 2*nn
 
+    ! allocate the stiffness matrix depending on the approac followed
     if (.not. banded) then
         allocate (kmat(neqn, neqn))
     else
-      print *, 'ERROR in fea/initial'
-      print *, 'Band form not implemented -- you need to add your own code here'
-      stop
+      ! compute the max band
+      call bandwidth(bw, ne)
+      !print*, bw
+      ! allocate the memory for banded stiffness matrix
+      allocate (kb(bw, neqn))
     end if
     allocate (p(neqn), d(neqn))
     allocate (strain(ne, 3), stress(ne, 3))
     allocate (stress_vm(ne))
-
     ! Initial stress and strain
-    strain = 0
-    stress = 0
-    stress_vm = 0
+    allocate (principal_stresses(ne, 3))
+    ! principal stresses and direction
+    strain = 0.0
+    stress = 0.0
+    stress_vm = 0.0
+    principal_stresses = 0.0
   end subroutine initial
 !
 !--------------------------------------------------------------------------------------------------
@@ -56,9 +62,21 @@ contains
     use fedata
     use numeth
     use processor
+    use build_matrix
 
     integer :: e
+    ! integer :: i
     real(wp), dimension(:), allocatable :: plotval
+    real(wp) :: h
+    real(wp) :: h_2
+    real(wp) :: start, finish
+    !real(wp) :: x_pos, y_pos ! coordinates of the point that must be investigated
+    !integer :: node_3_number ! node where compute the displacement
+    !real(wp) :: det
+    ! real(wp) :: minv
+
+    ! Initialize the computation of the execution time
+    call cpu_time(start)
 
     ! Build load-vector
     call buildload
@@ -70,38 +88,40 @@ contains
     call enforce
 
     if (.not. banded) then
+      ! call  compute_det(kmat, det)
+      ! print*,'Determinant of kmat = ', det
+      ! pause
       ! Factor stiffness matrix
-      print*, 'TEST'
       call factor(kmat)
+
       ! Solve for displacement vector
-      print*, 'Print load vector p'
-      print'(f20.8)', p ! print load vector
       call solve(kmat, p)
-      print*, 'Print displacement vector'
-      print'(f12.8)', p ! print displcement vector
-      print*, 'End displ'
+
     else
-      print *, 'ERROR in fea/displ'
-      print *, 'Band form not implemented -- you need to add your own code here'
-      stop
+      
+      call bfactor(kb)
+      
+      call bsolve(kb, p)
+      print*, 'Print displacement point b'
+      print'(f20.8)', p(1681*2) ! print displcement vector
     end if
 
     ! Transfer results
     d(1:neqn) = p(1:neqn)
-    print*, 'transfer done done'
-    
+
     ! Recover stress
     call recover
-    print*, 'Recover done'
+    ! sopt time computation
+    call cpu_time(finish)
+
     ! Output results
     call output
-    print*, 'Output done'
 
     ! Plot deformed structure
     call plotmatlabdef('Deformed')
 
     ! Plot element values
-    allocate (plotval(ne)) 
+    allocate (plotval(ne))
     do e = 1, ne
       if (element(e)%id == 1) then
         plotval(e) = stress(e,1)
@@ -110,8 +130,38 @@ contains
       end if
     end do
     call plotmatlabeval('Stresses',plotval)
+    ! print the principal stresses and direction
+    call plotmatlabevec('Principal', principal_stresses(:, 1), principal_stresses(:, 2), principal_stresses(:, 3))
+    !print'(3f6.2,tr1)', transpose(principal_stresses)
 
-  end subroutine displ
+    ! print on file
+
+    ! element size and its square
+    h = x(element(1)%ix(2),1) - x(element(1)%ix(1),1)
+    h_2 = h**2
+
+    ! if not banded form imlemented then bandwith is 0
+    if ( .not. banded) then
+      bw = 0
+    end if
+
+  !   x_pos = 1.0
+  !   y_pos = 1.0
+  !   do i = 1, ne
+  !     if( (x(element(i)%ix(3), 1) == x_pos) .and. (x(element(i)%ix(4), 1) == x_pos - h) .and. (x(element(i)%ix(3), 2) == y_pos) .and. (x(element(i)%ix(2), 2) == y_pos - h) ) then
+  !       exit
+  !     end if
+  !   end do
+
+  !   node_3_number = int(element(i)%ix(3)) ! node number where compute the displacement
+
+    open(unit = 11, file = "test_results.txt", position = "append")
+    ! name of the file, stress B, displacement B, element size, square element size, bandwidth
+    !write(11, '(a a e9.3 a e9.3 a e9.3 a e9.3 a i3)' ) trim(filename), ',', stress_vm(420), ',', d(882), ',', h, ',', h_2, ',', bw
+    !write(11, '(a a e9.3 a e9.3 a e9.3 a e9.3 a i3)' ) trim(filename), ',', stress_vm(i), ',', d(node_3_number * 2), ',', h, ',', h_2, ',', bw
+    write(11, '(a a i4 a i5 a e9.3 )' ) trim(filename), ',', bw, ',', neqn, ',', finish-start
+    close(11)
+  end subroutine displ 
 !
 !--------------------------------------------------------------------------------------------------
 !
@@ -133,10 +183,10 @@ contains
     integer :: node, pos, e
 
     ! Build load vector
-    p(1:neqn) = 0
+    p(1:neqn) = 0.0
 
     ! initilize vector for distributed loads
-    r = 0
+    r = 0.0
 
     do i = 1, np
       select case(int(loads(i, 1)))
@@ -144,10 +194,10 @@ contains
         ! Build nodal load contribution
         node = int(loads(i, 2)) ! node number
         pos = node*2 - (2 - int(loads(i, 3))) ! position of the load in p
-        p(pos) = loads(i, 4) ! insert the load in p
+        p(pos) = int(loads(i, 4)) ! insert the load in p
       case( 2 )
         ! Build uniformly distributed surface (pressure) load contribution
-        
+
         ! Find coordinates and degrees of freedom
         e = int(loads(i, 2)) ! number of the node where load is applied
         nen = element(e)%numnode ! number of the nodes of e
@@ -157,24 +207,24 @@ contains
           edof(2*j-1) = 2 * element(e)%ix(j) - 1
           edof(2*j)   = 2 * element(e)%ix(j)
         end do
-        
+
         ! face of the element where load is applied
         eface = int(loads(i, 3))
-        
+
         ! value of the pressure applied to the face
         fe = loads(i, 4)
 
         ! thickness where load is applied
-        thk = mprop(element(e)%mat)%thk 
+        thk = mprop(element(e)%mat)%thk
 
         ! build re
         call plane42rect_re(xe, eface, fe, thk, re)
-             
+
         ! combine re in r vector
         do j = 1, mdim
           r(edof(j)) = r(edof(j)) + re(j)
         end do
-        
+
         !print'(f20.8)', r ! remove, only placed for testing porpuses
         !print *, 'ERROR in fea/buildload'
         !print *, 'Distributed loads not defined -- you need to add your own code here'
@@ -206,26 +256,27 @@ contains
     integer, dimension(mdim) :: edof
     real(wp), dimension(mdim) :: xe
     real(wp), dimension(mdim, mdim) :: ke
-! Hint for modal analysis:
-!        real(wp), dimension(mdim, mdim) :: me
+    ! Hint for modal analysis:
+    !        real(wp), dimension(mdim, mdim) :: me
     real(wp) :: young, area, nu, thk
-! Hint for modal analysis and continuum elements:
-!        real(wp) :: nu, dens, thk
+    ! Hint for modal analysis and continuum elements:
+    !        real(wp) :: nu, dens, thk
 
     ! Reset stiffness matrix
     if (.not. banded) then
-        kmat = 0
+      kmat = 0.0
     else
-        
-      print*,'ERROR in fea/buildstiff'
-      print*,'Band form not implemented -- you need to add your own code here'
-      stop
+      kb = 0.0
+      ! print*,'ERROR in fea/buildstiff'
+      ! print*,'Band form not implemented -- you need to add your own code here'
+      ! stop
     end if
 
     do e = 1, ne
 
       ! Find coordinates and degrees of freedom
-      nen = element(e)%numnode
+      nen = int(element(e)%numnode)
+
       do i = 1, nen
         xe(2*i-1) = x(element(e)%ix(i),1)
         xe(2*i  ) = x(element(e)%ix(i),2)
@@ -240,11 +291,11 @@ contains
           area  = mprop(element(e)%mat)%area
           call link1_ke(xe, young, area, ke)
         case( 2 )
-              
+
           young = mprop(element(e)%mat)%young
           nu = mprop(element(e)%mat)%nu
           thk = mprop(element(e)%mat)%thk
-          
+
           call plane42rect_ke(xe, young, nu, thk, ke)
             !print *, 'ERROR in fea/buildstiff:'
             !print *, 'Stiffness matrix for plane42rect elements not implemented -- you need to add your own code here'
@@ -258,13 +309,23 @@ contains
             kmat(edof(i), edof(j)) = kmat(edof(i), edof(j)) + ke(i, j)
           end do
         end do
-! Hint: Can you eliminate the loops above by using a different Fortran array syntax?
+
+        ! Hint: Can you eliminate the loops above by using a different Fortran array syntax?
       else
-        print *, 'ERROR in fea/buildstiff'
-        print *, 'Band form not implemented -- you need to add our own code here'
-        stop
+        do i = 1, 2*nen
+          do j = 1, 2*nen
+            ! check wether we are on the lower part of the Kmat
+            if (edof(i) >= edof(j)) then
+              kb(edof(i)-edof(j)+1, edof(j)) = kb(edof(i)-edof(j)+1, edof(j)) + ke(i, j)
+            end if
+          end do
+        end do
+        ! print *, 'ERROR in fea/buildstiff'
+        ! print *, 'Band form not implemented -- you need to add our own code here'
+        ! stop
       end if
     end do
+    ! print'(24f5.2)', transpose(kb)
   end subroutine buildstiff
 !
 !--------------------------------------------------------------------------------------------------
@@ -275,8 +336,11 @@ contains
 
     use fedata
 
-    integer :: i, idof
+    integer :: i, idof, j
     real(wp) :: penal
+
+    ! print'(24f5.2)', transpose(kb)
+    ! print*, 'pausa'
 
     ! Correct for supports
     if (.not. banded) then
@@ -285,9 +349,11 @@ contains
           idof = int(2*(bound(i,1)-1) + bound(i,2))
           p(1:neqn) = p(1:neqn) - kmat(1:neqn, idof) * bound(i, 3)
           p(idof) = bound(i, 3)
-          kmat(1:neqn, idof) = 0
-          kmat(idof, 1:neqn) = 0
-          kmat(idof, idof) = 1
+          kmat(1:neqn, idof) = 0.0
+          kmat(idof, 1:neqn) = 0.0
+          kmat(idof, idof) = 1.0
+
+          !print*,bound(i,:)
         end do
       else
         penal = penalty_fac*maxval(kmat)
@@ -298,10 +364,24 @@ contains
         end do
       end if
     else
-      print *, 'ERROR in fea/enforce'
-      print *, 'Band form not implemented -- you need to add your own code here'
-      stop
+      do i = 1, nb
+        idof = 0
+        idof = int(2*(bound(i,1)-1) + bound(i,2))
+          do j = 2, bw
+            kb(j, idof) = 0.0 ! wite 0 on the column
+            if ((j <= idof)) then
+              kb(j, idof - j + 1) = 0.0 ! write 0 on the diagonal
+            end if
+          end do
+        kb(1, idof) = 1.0 ! write 1 in the first row
+        p(idof) = 0.0 ! enforce boundary on p
+      end do
+      ! print *, 'ERROR in fea/enforce'
+      ! print *, 'Band form not implemented -- you need to add your own code here'
+      ! stop
     end if
+    ! print'(24f6.3)', transpose(kb(3:4,:))
+
   end subroutine enforce
   !
   !--------------------------------------------------------------------------------------------------
@@ -314,7 +394,7 @@ contains
     use fedata
     use link1
     use plane42rect
-    
+
     integer :: e, i, nen
     integer :: edof(mdim)
     real(wp), dimension(mdim) :: xe, de
@@ -323,18 +403,17 @@ contains
 ! Hint for continuum elements:
 !        real(wp):: nu, dens, thk
     real(wp), dimension(3) :: estrain, estress
-    real(wp) :: estress_vm
+    real(wp) :: estress_vm, estress_1, estress_2, psi
     real(wp) :: nu
     real(wp), dimension(neqn) :: temp
-    ! Reset force vector
-    p = 0
-    
-    do e = 1, ne
-      temp = 0
 
-      print*, 'Print test1'
+    ! Reset force vector
+    p = 0.0
+
+    do e = 1, ne
+
       ! Find coordinates etc...
-      nen = element(e)%numnode
+      nen = int(element(e)%numnode)
       do i = 1,nen
         xe(2*i-1) = x(element(e)%ix(i), 1)
         xe(2*i)   = x(element(e)%ix(i), 2)
@@ -343,34 +422,40 @@ contains
         de(2*i-1) = d(edof(2*i-1))
         de(2*i)   = d(edof(2*i))
       end do
-      print*, 'Print test2'
 
       ! Find stress and strain
-      select case( element(e)%id )
-      case( 1 )
+      select case( int(element(e)%id) )
+      case( 1 ) ! thruss struct
         young = mprop(element(e)%mat)%young
         area  = mprop(element(e)%mat)%area
         call link1_ke(xe, young, area, ke)
-          temp = matmul(ke(1:2*nen,1:2*nen), de(1:2*nen))
-          p(edof(1:2*nen)) = p(edof(1:2*nen)) + temp
+        temp = matmul(ke(1:2*nen,1:2*nen), de(1:2*nen))
+        p(edof(1:2*nen)) = p(edof(1:2*nen)) + temp
         call link1_ss(xe, de, young, estress, estrain)
         stress(e, 1:3) = estress
-        strain(e, 1:3) = estrain  
-      case( 2 )
-        print*, 'Print test13'
+        strain(e, 1:3) = estrain
+      case( 2 ) ! continuum
         young = mprop(element(e)%mat)%young
         nu = mprop(element(e)%mat)%nu
-        print*, 'before'
-        call plane42rect_ss(xe, de, young, nu, estress, estrain, estress_vm)
+        call plane42rect_ss(xe, de, young, nu, estress, estrain, estress_vm, estress_1, estress_2, psi)
         stress(e, 1:3) = estress
         strain(e, 1:3) = estrain
-        stress_vm(e) = estress_vm 
-        print*, 'after'
+        stress_vm(e) = estress_vm
+        ! store principal stresses and direction
+        principal_stresses(e, 1) = estress_1
+        principal_stresses(e, 2) = estress_2
+        principal_stresses(e, 3) = psi
+
       end select
     end do
-    print*, 'Von mises stress'
-    print'(f20.8)', stress_vm ! print von mises stress vector
-    print*, 'End Von mises stress'
+    print*, 'Von mises stress for point B'
+    print*, stress_vm(1600)
+    !print*, 'Von mises stress for point B'
+    !print*, stress_vm(25)
+
+    !print*, 'Von mises stress'
+    !print'(f20.8)', stress_vm ! print von mises stress vector
+    !print*, 'End Von mises stress'
   end subroutine recover
 
 end module fea
