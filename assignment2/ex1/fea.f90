@@ -5,7 +5,7 @@ module fea
   implicit none
   save
   private
-  public :: displ, initial, buildload, buildstiff, enforce, recover
+  public :: displ, initial, buildload, buildstiff, enforce, recover, computational_cost
 
 contains
 
@@ -64,28 +64,34 @@ contains
     use processor
     use build_matrix
 
-    integer :: e
+    ! integer :: e
     ! integer :: i
-    real(wp), dimension(:), allocatable :: plotval
-    real(wp) :: h
-    real(wp) :: h_2
-    real(wp) :: start, finish
+    ! real(wp), dimension(:), allocatable :: plotval
+    ! real(wp) :: h ! mesh size
+    ! real(wp) :: h_2
+    real(wp) :: time ! time for CPU time
+    ! real(wp) :: start, finish ! time for star and finish the cpu timing with method 2
+    real(wp) :: total_cost ! cost of operations
+    
     !real(wp) :: x_pos, y_pos ! coordinates of the point that must be investigated
     !integer :: node_3_number ! node where compute the displacement
     !real(wp) :: det
     ! real(wp) :: minv
-
-    ! Initialize the computation of the execution time
-    call cpu_time(start)
-
+    
     ! Build load-vector
     call buildload
-
+    
     ! Build stiffness matrix
     call buildstiff
-
+    
     ! Remove rigid body modes
     call enforce
+    
+    ! Initialize the computation of the execution time
+    call stopwatch_modified('star', time)
+    
+    ! ! Second method for cpu time
+    ! call cpu_time(start)
 
     if (.not. banded) then
       ! call  compute_det(kmat, det)
@@ -102,48 +108,56 @@ contains
       call bfactor(kb)
       
       call bsolve(kb, p)
-      print*, 'Print displacement point b'
-      print'(f20.8)', p(1681*2) ! print displcement vector
+      ! print*, 'Print displacement point b'
+      ! print'(f20.8)', p(441*2) ! print displcement vector
     end if
 
+    ! sopt time computation
+    call stopwatch_modified('stop', time)
+    
+    !! Time with second method
+    ! call cpu_time(finish)
+    ! print*, 'time with cpu time', finish-start
+    
     ! Transfer results
     d(1:neqn) = p(1:neqn)
 
     ! Recover stress
     call recover
-    ! sopt time computation
-    call cpu_time(finish)
 
     ! Output results
     call output
 
-    ! Plot deformed structure
-    call plotmatlabdef('Deformed')
+    ! ! Plot deformed structure
+    ! call plotmatlabdef('Deformed')
 
-    ! Plot element values
-    allocate (plotval(ne))
-    do e = 1, ne
-      if (element(e)%id == 1) then
-        plotval(e) = stress(e,1)
-      else if (element(e)%id == 2) then
-        plotval(e) = stress_vm(e)
-      end if
-    end do
-    call plotmatlabeval('Stresses',plotval)
-    ! print the principal stresses and direction
-    call plotmatlabevec('Principal', principal_stresses(:, 1), principal_stresses(:, 2), principal_stresses(:, 3))
+    ! ! Plot element values
+    ! allocate (plotval(ne))
+    ! do e = 1, ne
+    !   if (element(e)%id == 1) then
+    !     plotval(e) = stress(e,1)
+    !   else if (element(e)%id == 2) then
+    !     plotval(e) = stress_vm(e)
+    !   end if
+    ! end do
+    ! call plotmatlabeval('Stresses',plotval)
+    ! ! print the principal stresses and direction
+    ! call plotmatlabevec('Principal', principal_stresses(:, 1), principal_stresses(:, 2), principal_stresses(:, 3))
     !print'(3f6.2,tr1)', transpose(principal_stresses)
 
     ! print on file
 
-    ! element size and its square
-    h = x(element(1)%ix(2),1) - x(element(1)%ix(1),1)
-    h_2 = h**2
+    ! ! element size and its square
+    ! h = x(element(1)%ix(2),1) - x(element(1)%ix(1),1)
+    ! h_2 = h**2
 
     ! if not banded form imlemented then bandwith is 0
     if ( .not. banded) then
       bw = 0
     end if
+
+    ! calculate the computational cost
+    call computational_cost(neqn, bw, total_cost)
 
   !   x_pos = 1.0
   !   y_pos = 1.0
@@ -155,11 +169,12 @@ contains
 
   !   node_3_number = int(element(i)%ix(3)) ! node number where compute the displacement
 
-    open(unit = 11, file = "test_results.txt", position = "append")
-    ! name of the file, stress B, displacement B, element size, square element size, bandwidth
-    !write(11, '(a a e9.3 a e9.3 a e9.3 a e9.3 a i3)' ) trim(filename), ',', stress_vm(420), ',', d(882), ',', h, ',', h_2, ',', bw
-    !write(11, '(a a e9.3 a e9.3 a e9.3 a e9.3 a i3)' ) trim(filename), ',', stress_vm(i), ',', d(node_3_number * 2), ',', h, ',', h_2, ',', bw
-    write(11, '(a a i4 a i5 a e9.3 )' ) trim(filename), ',', bw, ',', neqn, ',', finish-start
+    open(unit = 11, file = "results_n_band.txt", position = "append")
+    ! ! name of the file, stress B, displacement B, element size, square element size, bandwidth
+    ! !write(11, '(a a e9.3 a e9.3 a e9.3 a e9.3 a i3)' ) trim(filename), ',', stress_vm(420), ',', d(882), ',', h, ',', h_2, ',', bw
+    ! !write(11, '(a a e9.3 a e9.3 a e9.3 a e9.3 a i3)' ) trim(filename), ',', stress_vm(i), ',', d(node_3_number * 2), ',', h, ',', h_2, ',', bw
+    ! ! name of file, bandwidth, neqn, time, cost
+    write(11, '(a a i4 a i5 a e9.4 a e9.3 )' ) trim(filename), ',', bw, ',', neqn, ',', time, ',', total_cost
     close(11)
   end subroutine displ 
 !
@@ -448,8 +463,8 @@ contains
 
       end select
     end do
-    print*, 'Von mises stress for point B'
-    print*, stress_vm(1600)
+    ! print*, 'Von mises stress for point B'
+    ! print*, stress_vm(420)
     !print*, 'Von mises stress for point B'
     !print*, stress_vm(25)
 
@@ -457,5 +472,28 @@ contains
     !print'(f20.8)', stress_vm ! print von mises stress vector
     !print*, 'End Von mises stress'
   end subroutine recover
+
+  ! compute the cost to perform the calculations
+  subroutine computational_cost(n, band_w, total_cost)
+    use fedata
+
+    integer, intent(in) :: n ! number of equations
+    integer, intent(in) :: band_w ! bandwidth
+    real(wp), intent(out) :: total_cost ! number of equations
+    real(wp) :: decomposition_cost, substitution_cost
+    real(wp) :: n_real
+    ! LU factorization cost
+    n_real = real(n)
+    if (.not. banded) then
+      ! banded not implemented
+      decomposition_cost = n_real**3/3
+      substitution_cost = n_real**2
+    else 
+      ! banded implemented
+      decomposition_cost = band_w**2*n_real/2
+      substitution_cost = 2*band_w*n_real
+    endif
+    total_cost = decomposition_cost + substitution_cost
+  end subroutine computational_cost
 
 end module fea

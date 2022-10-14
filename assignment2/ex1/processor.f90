@@ -7,7 +7,7 @@ module processor
     use fedata
     implicit none
 
-    public :: input, output, stopwatch, plotmatlabdef, plotmatlabeval, plotmatlabevec, plotmatlabeig
+    public :: input, output, stopwatch, plotmatlabdef, plotmatlabeval, plotmatlabevec, plotmatlabeig, stopwatch_modified
     private
 
     ! Counters for output files
@@ -446,12 +446,47 @@ contains
             call date_and_time(values=time_array_1)
             finish_time = time_array_1 (5) * 3600 + time_array_1 (6) * 60 + time_array_1 (7) + 0.001 * time_array_1 (8)
             write (6, '(8x, 1a, 1f16.6)') 'elapsed wall clock time:', finish_time - start_time
-        case default
+          case default
             write (*, '("ERROR: in Processor/stopwatch")')
             stop
         end select
+
     end subroutine stopwatch
 
+    !
+!--------------------------------------------------------------------------------------------------
+!
+    subroutine stopwatch_modified(oper, cpu_time)
+
+      !! This subroutine computes elapsed wallclock time
+      !!
+      !! Timing information is written in terminal window
+
+      character(len=4), intent(in) :: oper
+          !! Select which "button" to press on your Stopwatch:
+          !!
+          !! * 'STAR' or 'star' = reset and start the stopwatch
+          !! * 'STOP' or 'stop' = print time spent since last 'star' operation (the stop watch is not reset)
+      real(wp), intent(out) :: cpu_time
+      integer time_array_0(8), time_array_1(8)
+      real(wp), save :: start_time, finish_time
+
+      select case (oper)
+      case ('STAR', 'star')
+          call date_and_time(values=time_array_0)
+          start_time = time_array_0 (5) * 3600 + time_array_0 (6) * 60 + time_array_0 (7) + 0.001 * time_array_0 (8)
+      case ('STOP', 'stop')
+          call date_and_time(values=time_array_1)
+          finish_time = time_array_1 (5) * 3600 + time_array_1 (6) * 60 + time_array_1 (7) + 0.001 * time_array_1 (8)
+            cpu_time = 0
+          write (6, '(8x, 1a, 1f16.6)') 'elapsed wall clock time:', finish_time - start_time
+            cpu_time = finish_time - start_time
+        case default
+          write (*, '("ERROR: in Processor/stopwatch")')
+          stop
+      end select
+
+  end subroutine stopwatch_modified
 !
 !--------------------------------------------------------------------------------------------------
 !

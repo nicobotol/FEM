@@ -64,7 +64,7 @@ module build_matrix
     real(wp), intent(out) :: det
     real(wp) tmp,c(size(aa,dim=1),size(aa,dim=2))
     real(wp) max
-    integer i,j,k,l,m,num(size(aa,dim=1))
+    integer i,k,l,m,num(size(aa,dim=1))
       ! n=size(aa,dim=1)
       det=1.0
       do k=1,neqn

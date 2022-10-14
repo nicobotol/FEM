@@ -6,7 +6,7 @@ TARGET = main
 
 FC = gfortran
 
-DEBUG = -Wall -g -Warray-temporaries -Wconversion -fimplicit-none -fbacktrace -ffree-line-length-0 -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan  -Wno-compare-reals
+DEBUG = -Wall -g -Warray-temporaries -Wconversion -fimplicit-none  -fbacktrace -ffree-line-length-0 -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan  -Wno-compare-reals -fbounds-check
 OPT = -O3
 FCFLAGS = -ffree-form  -Wall -Wconversion -fbounds-check
 FLFLAGS = -g
@@ -52,7 +52,7 @@ link1.o:\
 	$(FC) $(FCFLAGS) -c link1.f90
 
 build_matrix.o:\
-	build_matrix.f90
+	build_matrix.f90\
 	types.f90
 	$(FC) $(FCFLAGS) -c build_matrix.f90
 

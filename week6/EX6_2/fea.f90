@@ -435,7 +435,8 @@ contains
       end select
     end do
     print*, 'Von mises stress for point A'
-    print*, stress_vm(4)
+    print*, stress_vm(420)
+    print*, d(441*2)
     print*, 'Von mises stress for point B'
     print*, stress_vm(25)
 
