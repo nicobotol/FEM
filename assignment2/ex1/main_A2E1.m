@@ -32,6 +32,7 @@ ylabel("Bandwidth")
 title("Bandwidth")
 legend('Original', 'Renum', 'Bandfem', 'Location','northwest')
 set(gca, 'YScale', 'log')
+grid on
 set(gca, 'FontAngle', 'oblique', 'FontSize', text_size)
 saveas(bandwidth , 'C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment2\images\bandwidth.png','png');
 
@@ -42,12 +43,14 @@ set(gca,'XTickLabel', mesh_name)
 xlabel("ne_x")
 ylabel("Number of equations")
 title("Number of equations")
+grid on
 set(gca, 'FontAngle', 'oblique', 'FontSize', text_size)
 saveas(neqn, 'C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment2\images\neqn.png','png');
 
 time = figure('Position', get(0, 'Screensize'));
 plot(data_band.time(:), 'o', 'LineWidth', line_width)
 hold on
+plot(data_n_band.time(:), 's', 'LineWidth', line_width);
 plot(data_band_renum.time(:), 'x', 'LineWidth', line_width);
 plot(data_band_bandfem.time(:), '+', 'LineWidth', line_width);
 hold off
@@ -56,8 +59,9 @@ set(gca,'XTickLabel', mesh_name)
 xlabel("ne_x")
 ylabel("Time (s)")
 title("CPU time")
-legend('Original', 'Renum', 'Bandfem', 'Location','northwest')
+legend('Original banded', 'Original non banded', 'Renum', 'Bandfem', 'Location','west')
 set(gca, 'YScale', 'log')
+grid on
 set(gca, 'FontAngle', 'oblique', 'FontSize', text_size)
 saveas(time, 'C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM\assignment2\images\time.png','png');
 

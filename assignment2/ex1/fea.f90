@@ -169,7 +169,7 @@ contains
 
   !   node_3_number = int(element(i)%ix(3)) ! node number where compute the displacement
 
-    open(unit = 11, file = "results_n_band.txt", position = "append")
+    open(unit = 11, file = "results_band.txt", position = "append")
     ! ! name of the file, stress B, displacement B, element size, square element size, bandwidth
     ! !write(11, '(a a e9.3 a e9.3 a e9.3 a e9.3 a i3)' ) trim(filename), ',', stress_vm(420), ',', d(882), ',', h, ',', h_2, ',', bw
     ! !write(11, '(a a e9.3 a e9.3 a e9.3 a e9.3 a i3)' ) trim(filename), ',', stress_vm(i), ',', d(node_3_number * 2), ',', h, ',', h_2, ',', bw
@@ -209,7 +209,7 @@ contains
         ! Build nodal load contribution
         node = int(loads(i, 2)) ! node number
         pos = node*2 - (2 - int(loads(i, 3))) ! position of the load in p
-        p(pos) = int(loads(i, 4)) ! insert the load in p
+        p(pos) = loads(i, 4) ! insert the load in p
       case( 2 )
         ! Build uniformly distributed surface (pressure) load contribution
 

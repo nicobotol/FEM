@@ -50,9 +50,7 @@ module build_matrix
           if (max_diff > bw) then
             bw = max_diff
           end if
-          
-      end do
-      
+        end do
       ! increas e the bandwidth to take into account the diagonal item
       bw = bw + 1 
       
