@@ -51,6 +51,8 @@ contains
     stress = 0.0
     stress_vm = 0.0
     principal_stresses = 0.0
+    allocate (gauss_location(ng)) ! gauss positions
+    allocate (gauss_weight(ng)) ! gauss weights
   end subroutine initial
 !
 !--------------------------------------------------------------------------------------------------
@@ -63,6 +65,7 @@ contains
     use numeth
     use processor
     use build_matrix
+    use plane42rect
 
     integer :: e
     ! integer :: i
@@ -78,6 +81,9 @@ contains
     !real(wp) :: det
     ! real(wp) :: minv
     
+    ! Load the gaussian quadrature points
+    call gauss_quadrature
+
     ! Build load-vector
     call buildload
     
@@ -139,7 +145,7 @@ contains
       else if (element(e)%id == 2) then
         plotval(e) = stress_vm(e)
       end if
-      print'(i4 f12.1)', e, stress_vm(e)
+      print'(i4 f12.8)', e, stress_vm(e)
     end do
     call plotmatlabeval('Stresses',plotval)
     ! print the principal stresses and direction
@@ -239,7 +245,7 @@ contains
       end select
     end do
     p = p + r ! add the distributed and concentrated loads
-    !print'(f10.4)', p
+    print'(f12.8)', p
   end subroutine buildload
 !
 !--------------------------------------------------------------------------------------------------

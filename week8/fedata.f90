@@ -177,4 +177,11 @@ module fedata
     logical, parameter :: isoparametric = .true.
         !! Indicate wheather apply or not the isoparamteric formulation
 
+
+    integer :: ng = 4
+        !! number of gauss points
+    real(wp), dimension(:), allocatable :: gauss_location
+        !! location of the gauss quadrature points
+    real(wp), dimension(:), allocatable :: gauss_weight
+        !! weights of the gauss quadrature points
 end module fedata
