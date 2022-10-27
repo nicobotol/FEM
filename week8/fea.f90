@@ -53,6 +53,7 @@ contains
     principal_stresses = 0.0
     allocate (gauss_location(ng)) ! gauss positions
     allocate (gauss_weight(ng)) ! gauss weights
+    allocate (gauss_location_bmat(ng_bmat)) ! gauss positions
   end subroutine initial
 !
 !--------------------------------------------------------------------------------------------------
@@ -83,6 +84,9 @@ contains
     
     ! Load the gaussian quadrature points
     call gauss_quadrature
+
+    ! Load the gaussian quadrature points fot the wvaluation of the bmat
+    call gauss_quadrature_bmat
 
     ! Build load-vector
     call buildload

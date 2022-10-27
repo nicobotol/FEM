@@ -178,10 +178,15 @@ module fedata
         !! Indicate wheather apply or not the isoparamteric formulation
 
 
-    integer :: ng = 4
-        !! number of gauss points
+    integer :: ng = 3
+    !! number of gauss points
+    integer :: ng_bmat = 1
+    !! number of gauss points where to evaluate bmat 
     real(wp), dimension(:), allocatable :: gauss_location
-        !! location of the gauss quadrature points
+    !! location of the gauss quadrature points
     real(wp), dimension(:), allocatable :: gauss_weight
-        !! weights of the gauss quadrature points
+    !! weights of the gauss quadrature points
+    real(wp), dimension(:), allocatable :: gauss_location_bmat
+    !! location where to evaluate the gauss quarature for stress computation
+
 end module fedata

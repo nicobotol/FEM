@@ -28,7 +28,7 @@ module plane42rect
   save
   
   private
-  public :: plane42rect_ke, plane42rect_re, plane42rect_ss, shape, gauss_quadrature
+  public :: plane42rect_ke, plane42rect_re, plane42rect_ss, shape, gauss_quadrature, gauss_quadrature_bmat
 
 contains
 
@@ -74,6 +74,8 @@ contains
     real(wp), dimension(3,8) :: B
     integer :: i, ii ! iterators
     real(wp), dimension(2,2) :: J
+    real(wp), dimension(3,8) :: temp_prod1
+    real(wp), dimension(8,8) :: temp_prod2
 
 
     ! build constitutive matrix (plane stress)
@@ -224,7 +226,9 @@ contains
           eta = gauss_location(ii)
 
           call shape(eta, xi, xe, B, J, det_J)
-          ke = ke + gauss_weight(i)*gauss_weight(ii)*thk*matmul(transpose(B),matmul(cmat, B))*det_J
+          temp_prod1 = matmul(cmat, B)
+          temp_prod2 = matmul(transpose(B), temp_prod1)
+          ke = ke + gauss_weight(i)*gauss_weight(ii)*thk*temp_prod2*det_J
         end do
       end do
     end if
@@ -243,6 +247,7 @@ contains
     real(wp), dimension(2,2) :: gamma ! inverse jacobian
     real(wp), dimension(4, 4) :: gamma_tilde
     real(wp), dimension(4, 8) :: N_tilde
+    real(wp), dimension(4, 8) :: temp_prod
 
     ! initialize l matrix
     L = 0
@@ -304,7 +309,8 @@ contains
     end do
 
     ! build B
-    B = matmul(L, matmul(gamma_tilde, N_tilde))
+    temp_prod = matmul(gamma_tilde, N_tilde)
+    B = matmul(L, temp_prod)
 
   end subroutine shape
 !
@@ -338,8 +344,10 @@ contains
     real(wp), dimension(3, 8) :: B
     real(wp), dimension(2,2) :: J ! jacobian
     real(wp), dimension(2, 8) :: N ! shape function matrix
+    real(wp), dimension(8, 2) :: N_T ! transpose shape function matrix
     real(wp) :: det_J
     real(wp), dimension(2) :: J_temp
+    real(wp), dimension(8) :: temp_prod
     integer :: i ! iterator
     ! integer :: ng = 2 ! gaussian quadrature points
     ! real(wp), dimension(ng) :: gauss_location ! gaussian points
@@ -451,7 +459,10 @@ contains
       !print*, J_temp
       !print'(24f5.2)', transpose(N)
       !print*, gauss_weight(i)
-      re = re + gauss_weight(i)*thk*fe*matmul(transpose(N), J_temp)
+
+      N_T = transpose(N) ! transpose N 
+      temp_prod = matmul(N_T, J_temp)
+      re = re + gauss_weight(i)*thk*fe*temp_prod
       
     end do
   end if
@@ -493,14 +504,17 @@ contains
   real(wp), intent(out) :: estress_vm ! element von Mises stress
   real(wp), intent(out) :: psi ! element principal direction
   real(wp), intent(out) :: estress_1, estress_2 ! element principal stresses
-  real(wp) :: bmat(3, 8), cmat(3, 3) 
+  real(wp) :: bmat(3, 8), cmat(3, 3), bmat_temp(3, 8)
   real(wp) :: aa, bb
   real(wp) :: location(2) ! (x,y) where stress and strain are evaluated inside the element
   real(wp) :: c_2psi, s_2psi ! element principal directions
   real(wp) :: det_J ! determinant if the jacobian in isoparametric case
   real(wp) :: eta, xi ! point where to calculate the bmat
   real(wp), dimension(2, 2) :: J ! jacobian matrix 
+  integer :: i ! iterator
 
+  bmat = 0.0
+  bmat_temp = 0.0
   if(.not. isoparametric) then
   aa = (xe(3)-xe(1))/2 ! x undeformed dimension
   bb = (xe(8)-xe(2))/2 ! y undeformed dimension
@@ -509,7 +523,6 @@ contains
   location(2) = bb ! y coord. where stress-strain is evaluated
   
   ! Build strain-displacement matrix
-  bmat = 0
   bmat(1, 1) = -(bb - location(2))
   bmat(1, 2) = 0
   bmat(1, 3) = (bb - location(2))
@@ -538,9 +551,14 @@ contains
   bmat = bmat / (4*aa*bb)
 
   else ! isoparametric formulation
-    eta = 0.0
-    xi = 0.0
-    call shape(xi, eta, xe, bmat, J, det_J)
+
+    ! compute the bmat wheighting the bmat evaluated over the gauss points
+    do i = 1, ng_bmat 
+      eta = gauss_location_bmat(i)
+      xi = gauss_location_bmat(i)
+      call shape(xi, eta, xe, bmat_temp, J, det_J)
+      bmat = bmat + bmat_temp/(ng_bmat)
+    end do
 
   end if
   ! Compute element strain
@@ -573,22 +591,24 @@ subroutine gauss_quadrature
 
   select case(ng)
   case( 1 )
+    ! position where to evaluate the gauss quadrature
     gauss_location(1) = 0.0
 
+    ! weight for the gauss quadrature
     gauss_weight(1) = 2.0
 
   case( 2 )
     gauss_location(1) = -1.0/3.0**0.5
     gauss_location(2) = 1.0/3.0**0.5
-
+    
     gauss_weight(1) = 1.0
     gauss_weight(2) = 1.0
-
+      
   case( 3 )
     gauss_location(1) = -0.6**0.5
     gauss_location(2) = 0
     gauss_location(3) = 0.6**0.5
-
+    
     gauss_weight(1) = 5.0/9.0
     gauss_weight(2) = 8.0/9.0
     gauss_weight(3) = 5.0/9.0
@@ -610,5 +630,33 @@ subroutine gauss_quadrature
   end select
 
 end subroutine gauss_quadrature
+
+subroutine gauss_quadrature_bmat
+  use fedata
+  ! This subroutine defines the gauss quadrature locations where to evaluate the bmat 
+
+  select case(ng_bmat)
+
+  case( 1 )
+    !position where to evaluate the gauss quadrature for stresses
+    gauss_location_bmat(1) = 0.0
+    
+  case( 2 )
+    
+    gauss_location_bmat(1) = -1.0/3.0**0.5
+    gauss_location_bmat(2) = 1.0/3.0**0.5
+
+  case ( 3 )
+    
+    gauss_location_bmat(1) = -0.6**0.5
+    gauss_location_bmat(2) = 0
+    gauss_location_bmat(3) = 0.6**0.5
+
+  case default 
+    print*, 'This number of gauss point is not valid'
+    stop
+  end select
+
+end subroutine gauss_quadrature_bmat
 
 end module plane42rect
