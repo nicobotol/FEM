@@ -511,7 +511,7 @@ contains
   real(wp) :: det_J ! determinant if the jacobian in isoparametric case
   real(wp) :: eta, xi ! point where to calculate the bmat
   real(wp), dimension(2, 2) :: J ! jacobian matrix 
-  integer :: i ! iterator
+  integer :: i, ii ! iterator
 
   bmat = 0.0
   bmat_temp = 0.0
@@ -553,11 +553,13 @@ contains
   else ! isoparametric formulation
 
     ! compute the bmat wheighting the bmat evaluated over the gauss points
-    do i = 1, ng_bmat 
-      eta = gauss_location_bmat(i)
-      xi = gauss_location_bmat(i)
-      call shape(xi, eta, xe, bmat_temp, J, det_J)
-      bmat = bmat + bmat_temp/(ng_bmat)
+    do i = 1, ng_bmat
+      do ii = 1, ng_bmat 
+        eta = gauss_location_bmat(i)
+        xi = gauss_location_bmat(ii)
+        call shape(xi, eta, xe, bmat_temp, J, det_J)
+        bmat = bmat + bmat_temp/(ng_bmat**2)
+      end do
     end do
 
   end if
