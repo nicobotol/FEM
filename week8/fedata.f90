@@ -180,7 +180,7 @@ module fedata
 
     integer :: ng = 4
     !! number of gauss points
-    integer :: ng_bmat = 3
+    integer :: ng_bmat = 1
     !! number of gauss points where to evaluate bmat 
     real(wp), dimension(:), allocatable :: gauss_location
     !! location of the gauss quadrature points

@@ -85,7 +85,7 @@ contains
     ! Load the gaussian quadrature points
     call gauss_quadrature
 
-    ! Load the gaussian quadrature points fot the wvaluation of the bmat
+    ! Load the gaussian quadrature points fot the evaluation of the bmat
     call gauss_quadrature_bmat
 
     ! Build load-vector
@@ -149,12 +149,21 @@ contains
       else if (element(e)%id == 2) then
         plotval(e) = stress_vm(e)
       end if
-      print'(i4 f12.8)', e, stress_vm(e)
+      ! print'(i4 f15.10)', e, stress_vm(e)
     end do
     call plotmatlabeval('Stresses',plotval)
     ! print the principal stresses and direction
     call plotmatlabevec('Principal', principal_stresses(:, 1), principal_stresses(:, 2), principal_stresses(:, 3))
-    !print'(3f12.8,tr1)', transpose(principal_stresses)
+    ! print'(3f12.8,tr1)', transpose(principal_stresses)
+
+    print'(i4 f12.1)', 574, stress_vm(574)
+    print'(i4 f12.1)', 572, stress_vm(572)
+    print'(i4 f12.1)', 568, stress_vm(568)
+    print'(i4 f12.1)', 569, stress_vm(569)
+    print'(i4 f12.1)', 570, stress_vm(570)
+    print'(i4 f12.1)', 571, stress_vm(571)
+    print'(i4 f12.1)', 573, stress_vm(573)
+    print'(i4 f12.1)', 575, stress_vm(575)
 
     ! print on file
 
@@ -249,7 +258,7 @@ contains
       end select
     end do
     p = p + r ! add the distributed and concentrated loads
-    print'(f12.8)', p
+    ! print'(f12.8)', p
   end subroutine buildload
 !
 !--------------------------------------------------------------------------------------------------

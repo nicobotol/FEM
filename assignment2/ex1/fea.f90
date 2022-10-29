@@ -169,7 +169,7 @@ contains
 
   !   node_3_number = int(element(i)%ix(3)) ! node number where compute the displacement
 
-    open(unit = 11, file = "results_band.txt", position = "append")
+    open(unit = 11, file = "results_band_renum.txt", position = "append")
     ! ! name of the file, stress B, displacement B, element size, square element size, bandwidth
     ! !write(11, '(a a e9.3 a e9.3 a e9.3 a e9.3 a i3)' ) trim(filename), ',', stress_vm(420), ',', d(882), ',', h, ',', h_2, ',', bw
     ! !write(11, '(a a e9.3 a e9.3 a e9.3 a e9.3 a i3)' ) trim(filename), ',', stress_vm(i), ',', d(node_3_number * 2), ',', h, ',', h_2, ',', bw
