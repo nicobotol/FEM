@@ -5,7 +5,7 @@ module fea
   implicit none
   save
   private
-  public :: displ, initial, buildload, buildstiff, enforce, recover, computational_cost
+  public :: displ, initial, buildload, buildstiff, enforce, recover, computational_cost, element_area
 
 contains
 
@@ -288,12 +288,11 @@ contains
     real(wp) :: young, area, nu, thk
     ! Hint for modal analysis and continuum elements:
     !        real(wp) :: nu, dens, thk
-    !real(wp) :: aa, bb ! edges of the block
-    !real(wp) :: surface ! area of the structure
+    real(wp) :: e_area, surface ! area of the structure
 
     
     ! initialize area
-    !surface = 0.0
+    surface = 0.0
 
     ! Reset stiffness matrix
     if (.not. banded) then
@@ -359,14 +358,13 @@ contains
       end if
 
       ! Compute the area of the entire structure by adding the one of the element
-      !aa = xe(3) - xe(1)
-      !bb = xe(8) - xe(2)
-    
-      ! surface = surface + aa*bb
+      call element_area(xe, e_area)
+      
+      surface = surface + e_area
       
     end do
     
-    ! print*, 'The area of the structure is', surface
+    print*, 'The area of the structure is', surface
     ! print'(24f5.2)', transpose(kb)
   end subroutine buildstiff
 !
@@ -375,9 +373,9 @@ contains
   subroutine enforce
 
     !! This subroutine enforces the support boundary conditions
-
+    
     use fedata
-
+    
     integer :: i, idof, j
     real(wp) :: penal
 
@@ -409,8 +407,8 @@ contains
       do i = 1, nb
         idof = 0
         idof = int(2*(bound(i,1)-1) + bound(i,2))
-          do j = 2, bw
-            kb(j, idof) = 0.0 ! wite 0 on the column
+        do j = 2, bw
+          kb(j, idof) = 0.0 ! wite 0 on the column
             if ((j <= idof)) then
               kb(j, idof - j + 1) = 0.0 ! write 0 on the diagonal
             end if
@@ -432,7 +430,7 @@ contains
 
     !! This subroutine recovers the element stress, element strain,
     !! and nodal reaction forces
-
+    
     use fedata
     use link1
     use plane42rect
@@ -442,18 +440,18 @@ contains
     real(wp), dimension(mdim) :: xe, de
     real(wp), dimension(mdim, mdim) :: ke
     real(wp) :: young, area
-! Hint for continuum elements:
-!        real(wp):: nu, dens, thk
+    ! Hint for continuum elements:
+    !        real(wp):: nu, dens, thk
     real(wp), dimension(3) :: estrain, estress
     real(wp) :: estress_vm, estress_1, estress_2, psi
     real(wp) :: nu
     real(wp), dimension(neqn) :: temp
-
+    
     ! Reset force vector
     p = 0.0
-
+    
     do e = 1, ne
-
+      
       ! Find coordinates etc...
       nen = int(element(e)%numnode)
       do i = 1,nen
@@ -464,7 +462,7 @@ contains
         de(2*i-1) = d(edof(2*i-1))
         de(2*i)   = d(edof(2*i))
       end do
-
+      
       ! Find stress and strain
       select case( int(element(e)%id) )
       case( 1 ) ! thruss struct
@@ -494,7 +492,7 @@ contains
     ! print*, stress_vm(420)
     !print*, 'Von mises stress for point B'
     !print*, stress_vm(25)
-
+    
     !print*, 'Von mises stress'
     !print'(f20.8)', stress_vm ! print von mises stress vector
     !print*, 'End Von mises stress'
@@ -523,6 +521,39 @@ contains
     total_cost = decomposition_cost + substitution_cost
   end subroutine computational_cost
 
+
+  !                                 __        _                           _   
+  !    __ _ _ __ ___  __ _    ___  / _|   ___| | ___ _ __ ___   ___ _ __ | |_ 
+  !   / _` | '__/ _ \/ _` |  / _ \| |_   / _ \ |/ _ \ '_ ` _ \ / _ \ '_ \| __|
+  !  | (_| | | |  __/ (_| | | (_) |  _| |  __/ |  __/ | | | | |  __/ | | | |_ 
+  !   \__,_|_|  \___|\__,_|  \___/|_|    \___|_|\___|_| |_| |_|\___|_| |_|\__|
+  
+  ! compute the area using Heron's formula
+  subroutine element_area(xe, e_area)
+    use fedata
+    real(wp), dimension(8), intent(in):: xe
+    real(wp), intent(out):: e_area
+    real(wp) :: aa, bb, cc, dd, ee, s1, s2 ! edges of the block
+    real(wp) :: A1, A2
+
+    A1 = 0.0 ! area of the 1st triangle (half of quadrilater's area)
+    A2 = 0.0 ! area of the 2nd triangle (half of quadrilater's area)
+
+    aa = ((xe(3) - xe(1))**2 + (xe(4) - xe(2))**2)**0.5 ! edge
+    bb = ((xe(7) - xe(1))**2 + (xe(8) - xe(2))**2)**0.5 ! edge
+    cc = ((xe(3) - xe(7))**2 + (xe(4) - xe(8))**2)**0.5 ! diagonal 
+    dd = ((xe(3) - xe(5))**2 + (xe(4) - xe(6))**2)**0.5 ! edge
+    ee = ((xe(5) - xe(7))**2 + (xe(6) - xe(8))**2)**0.5 ! edge
+    
+    s1 = (aa + bb + cc)*0.5 ! semiperimeter of 1st triangle
+    s2 = (ee + dd + cc)*0.5 ! semiperimeter of 2nd triangle
+    
+    A1 = (s1*(s1 - aa)*(s1 - bb)*(s1 - cc))**0.5 ! area of 1st triangle
+    A2 = (s2*(s2 - dd)*(s2 - ee)*(s2 - cc))**0.5 ! area of 2nd triangle
+
+    e_area = A1 + A2 ! element area
+    
+  end subroutine element_area
 end module fea
 
 
