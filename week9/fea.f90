@@ -56,7 +56,7 @@ contains
     allocate (gauss_weight(ng)) ! gauss weights
     allocate (gauss_location_bmat(ng_bmat)) ! gauss positions
 
-    allocate (evec(neqn, neig))
+    allocate (ematrix(neqn, neig))
   end subroutine initial
 !
 !--------------------------------------------------------------------------------------------------
@@ -513,6 +513,7 @@ subroutine single_eigen
   real(wp), dimension(neqn) :: Yvec 
   real(wp), dimension(neqn) :: evec_old, yvec_old
   real(wp) :: lambda, omega, rp
+  real(wp) :: evec(neqn)
   
   ! Load the gaussian quadrature points
   call gauss_quadrature
@@ -555,18 +556,18 @@ subroutine single_eigen
   call stopwatch_modified('stop', time)
   
   ! initial guess for eigenvector
-  evec(:, 1) = 1.0
+  evec = 1.0
   Yvec = 0.0
   lambda = 0.0
   omega = 0.0
   rp = 0.0
 
-  call mmul(evec(:, 1), Yvec)
+  call mmul(evec, Yvec)
 
   do i = 1, pmax
     Yvec_old(1:neqn) = Yvec(1:neqn) ! store the last 
 
-    evec_old(1:neqn) = evec(:, 1) ! store the eig at the previous iteration
+    evec_old(1:neqn) = evec ! store the eig at the previous iteration
 
     ! enforce boundary on Yvec
     idof = 0
@@ -577,30 +578,30 @@ subroutine single_eigen
 
     call bsolve(kb, Yvec_old)
 
-    evec(1:neqn, 1) = Yvec_old(1:neqn)
+    evec = Yvec_old(1:neqn)
 
-    call mmul(evec(:, 1), Yvec)
+    call mmul(evec, Yvec)
 
-    rp = (dot_product(evec(:, 1), Yvec))**0.5
-    ! rp = (dot_product(transpose(evec(:, 1)), Yvec))**0.5
+    rp = (dot_product(evec, Yvec))**0.5
+    ! rp = (dot_product(transpose(evec), Yvec))**0.5
     
     Yvec = Yvec/rp
 
-    if ((norm2(evec(:, 1) - evec_old) / norm2(evec(:, 1))) < epsilon) then
+    if ((norm2(evec - evec_old) / norm2(evec)) < epsilon) then
       exit
     end if
 
   end do
 
-  lambda = dot_product(evec(:, 1), Yvec) / rp**2
-  ! lambda = dot_prod(transpose(evec(:, 1)), Yvec_old) / rp**2
+  lambda = dot_product(evec, Yvec) / rp**2
+  ! lambda = dot_prod(transpose(evec), Yvec_old) / rp**2
   omega = lambda**0.5
 
-  evec(:, 1) = evec(:, 1) / rp ! compute the eigenvector
+  evec = evec / rp ! compute the eigenvector
 
   print*, omega
   
-  call plotmatlabeig('Mode Shape', lambda, 50.0*evec(:,1), [10.0d0, 0.10d0])
+  ! call plotmatlabeig('Mode Shape', lambda, 50.0*evec, [10.0d0, 0.10d0])
 
   ! if not banded form imlemented then bandwith is 0
   if ( .not. banded) then
@@ -614,16 +615,23 @@ subroutine single_eigen
   ! close(11)
 end subroutine single_eigen
 
+!        _                  
+!    ___(_) __ _  ___ _ __  
+!   / _ \ |/ _` |/ _ \ '_ \ 
+!  |  __/ | (_| |  __/ | | |
+!   \___|_|\__, |\___|_| |_|
+!          |___/            
+
 subroutine eigen
 
-  !! This subroutine performas the eigenvalues analysis
+  !! This subroutine performas the eigenvalues analysis for multiple eigen mode shape
   use fedata
   use numeth
   use processor
   use build_matrix
   use plane42rect
 
-  integer :: i, ii, idof
+  integer :: i, ii, idof, l, j
   ! integer :: i
   !real(wp), dimension(:), allocatable :: plotval
   ! real(wp) :: h ! mesh size
@@ -631,17 +639,16 @@ subroutine eigen
   real(wp) :: time ! time for CPU time
   ! real(wp) :: start, finish ! time for star and finish the cpu timing with method 2
   real(wp), dimension(neqn) :: Yvec 
-  real(wp), dimension(neqn) :: evec_old, yvec_old
-  real(wp) :: lambda, omega, rp
+  real(wp), dimension(neqn) :: evec_old, yvec_old, evec
+  real(wp) :: lambda, rp, cj
+  real(wp), dimension(neig) :: lambda_vec, omega_vec
+  real(wp), dimension(neqn, neig) :: Zmatrix 
   
   ! Load the gaussian quadrature points
   call gauss_quadrature
 
   ! Load the gaussian quadrature points fot the evaluation of the bmat
   call gauss_quadrature_bmat
-
-  ! Build load-vector
-  ! call buildload
   
   ! Build stiffness matrix
   call buildstiff
@@ -674,53 +681,69 @@ subroutine eigen
   ! sopt time computation
   call stopwatch_modified('stop', time)
   
-  ! initial guess for eigenvector
-  evec(:, 1) = 1.0
-  Yvec = 0.0
-  lambda = 0.0
-  omega = 0.0
-  rp = 0.0
+  Zmatrix = 0.0
+  ematrix = 0.0
+  lambda_vec = 0.0
+  omega_vec = 0.0
 
-  call mmul(evec(:, 1), Yvec)
+  do l = 1, neig ! loop for different eig
+    ! fors guess eigenvector
+    evec = 1.0
+    Yvec = 0.0 
 
-  do i = 1, pmax
-    Yvec_old(1:neqn) = Yvec(1:neqn) ! store the last 
+    ! calculate Y0
+    call mmul(evec, Yvec)
 
-    evec_old(1:neqn) = evec(:, 1) ! store the eig at the previous iteration
-
-    ! enforce boundary on Yvec
-    idof = 0
-    do ii = 1, nb
-      idof = int(2*(bound(ii, 1) - 1) + bound(ii, 2))
-      Yvec_old(idof) = 0.0 
+    do j = 1, l - 1
+      call mmul(ematrix(:, j), Zmatrix(:, j))
     end do
 
-    call bsolve(kb, Yvec_old)
+    do i = 1, pmax
+      Yvec_old = Yvec ! store the last Y
+      evec_old = evec ! store the eig at the previous iteration
 
-    evec(1:neqn, 1) = Yvec_old(1:neqn)
+      ! enforce boundary on Yvec
+      idof = 0
+      do ii = 1, nb
+        idof = int(2*(bound(ii, 1) - 1) + bound(ii, 2))
+        Yvec_old(idof) = 0.0 
+      end do
 
-    call mmul(evec(:, 1), Yvec)
+      !solve Xp
+      call bsolve(kb, Yvec_old)
+      evec = Yvec_old
 
-    rp = (dot_product(evec(:, 1), Yvec))**0.5
-    ! rp = (dot_product(transpose(evec(:, 1)), Yvec))**0.5
-    
-    Yvec = Yvec/rp
+      ! ortogonalization
+      do j = 1, l - 1
+        cj = dot_product(evec, Zmatrix(:, j))
+        evec = evec - cj*ematrix(:, j)
+      end do
 
-    if ((norm2(evec(:, 1) - evec_old) / norm2(evec(:, 1))) < epsilon) then
-      exit
-    end if
+      ! compute Yp
+      call mmul(evec, Yvec)
+
+      ! compute rp
+      rp = (dot_product(evec, Yvec))**0.5
+
+      Yvec = Yvec/rp
+
+      if ((norm2(evec - evec_old) / norm2(evec)) < epsilon) then
+        exit
+      end if
+
+    end do
+
+    ! save values
+    ematrix(:, l) = evec/rp
+    lambda = dot_product(evec, Yvec) / rp**2
+    lambda_vec(l) = lambda
+    omega_vec(l) = lambda**0.5
 
   end do
 
-  lambda = dot_product(evec(:, 1), Yvec) / rp**2
-  ! lambda = dot_prod(transpose(evec(:, 1)), Yvec_old) / rp**2
-  omega = lambda**0.5
-
-  evec(:, 1) = evec(:, 1) / rp ! compute the eigenvector
-
-  print*, omega
+  print '(f10.8)', omega_vec
   
-  call plotmatlabeig('Mode Shape', lambda, 50.0*evec(:,1), [10.0d0, 0.10d0])
+  ! call plotmatlabeig('Mode Shape', lambda, 50.0*evec(:,1), [10.0d0, 0.10d0])
 
   ! if not banded form imlemented then bandwith is 0
   if ( .not. banded) then
@@ -749,6 +772,8 @@ subroutine mmul(Xvec, Yvec)
   integer, dimension(8) :: edof
   real(wp), dimension(8) :: X_temp, Y_temp
 
+  Yvec = 0.0
+  
   do e = 1, ne
     nen = element(e)%numnode
     ! element density

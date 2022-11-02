@@ -16,11 +16,20 @@ program main
   ! Initialize problem
   call initial
   
-  ! Calculate displacements
+! if (antype == 'static') then
+!   ! Calculate displacements
+!   call displ
+! else if(antype == 'modal') then
+!   ! Perform the modal analysis
+!   call eigen
+! else
+!     print*, ' Case not defined'
+!     stop
+! end if
+
   call displ
 
-  ! Perform the modal analysis
-  call eigen
+  call eing
 
-  !call stopwatch('stop')
+  call stopwatch('stop')
 end program main

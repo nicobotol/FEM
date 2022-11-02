@@ -192,9 +192,9 @@ module fedata
     !! location where to evaluate the gauss quarature for stress computation
 
     ! EIGENVECTOR ANALISYS
-    real(wp), dimension(:, :), allocatable :: evec
-        !! Matrix containing the 
-    integer :: neig = 1
+    real(wp), dimension(:, :), allocatable :: ematrix
+        !! Matrix containing the eigenvectors
+    integer :: neig = 5
         !! number of eigenvector we are looking for
     integer :: pmax = 100
         !! max number of iterations
