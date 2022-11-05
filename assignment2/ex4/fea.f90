@@ -5,7 +5,7 @@ module fea
   implicit none
   save
   private
-  public :: displ, initial, buildload, buildstiff, enforce, recover, eigen, mmul, computational_cost, single_eigen
+  public :: displ, initial, buildload, buildstiff, enforce, recover, eigen, mmul, computational_cost, single_eigen, buildmass, sturm_check
 
 contains
 
@@ -39,8 +39,8 @@ contains
       call bandwidth(bw, ne)
       !print*, bw
       ! allocate the memory for banded stiffness matrix and mass matrix
-      allocate (kb(bw, neqn))
       allocate (mb(bw, neqn))
+      allocate (kb(bw, neqn))
     end if
     allocate (p(neqn), d(neqn))
     allocate (strain(ne, 3), stress(ne, 3))
@@ -691,6 +691,7 @@ subroutine eigen
     ! fors guess eigenvector
     evec = 1.0
     Yvec = 0.0 
+    evec_old = 0.0
 
     ! calculate Y0
     call mmul(evec, Yvec)
@@ -744,7 +745,7 @@ subroutine eigen
 
   print '(f10.8)', omega_vec
   
-  call plotmatlabeig('Mode Shape', omega_vec(1), 1.0*ematrix(:,1), [10.0d0, 0.10d0])
+  call plotmatlabeig('Mode Shape', omega_vec(4), 1.0*ematrix(:,4), [10.0d0, 0.10d0])
 
   ! if not banded form imlemented then bandwith is 0
   if ( .not. banded) then
@@ -755,9 +756,15 @@ subroutine eigen
 
   print*, print_thk
   ! Write on file
+  ! open(unit = 11, file = "results_cantilever.txt", position = "append")
   open(unit = 11, file = "results_ex4.txt", position = "append")
   write(11, '(f10.6 a f7.5 a f7.5 a f7.5 a f7.5 a f7.5 a f7.5 a)' ) print_thk, ',', omega_vec(1), ',', omega_vec(2), ',', omega_vec(3), ',', omega_vec(4), ',', omega_vec(5), ',', omega_vec(6)
   close(11)
+
+  ! perform sturm check
+  ! call sturm_check(lambda_vec)
+
+
 end subroutine eigen
 
 subroutine mmul(Xvec, Yvec)
@@ -776,7 +783,7 @@ subroutine mmul(Xvec, Yvec)
   real(wp), dimension(8) :: X_temp, Y_temp
 
   Yvec = 0.0
-
+  
   do e = 1, ne
     nen = element(e)%numnode
     ! element density
@@ -784,6 +791,10 @@ subroutine mmul(Xvec, Yvec)
     thk = mprop(element(e)%mat)%thk
     nu = mprop(element(e)%mat)%nu
     young = mprop(element(e)%mat)%young
+    
+    ! clear the previous used vector 
+    X_temp = 0.0
+    Y_temp = 0.0
     
     ! build edof
     do i = 1, nen
@@ -813,5 +824,114 @@ subroutine mmul(Xvec, Yvec)
   end do
 
 end subroutine mmul
+
+subroutine buildmass
+
+  !! This subroutine builds the global stiffness matrix from
+  !! the local element stiffness matrices
+
+  use fedata
+  use link1
+  use plane42rect
+
+  integer :: e, i, j
+  integer :: nen
+! Hint for system matrix in band form:
+!        integer :: irow, icol
+  integer, dimension(mdim) :: edof
+  real(wp), dimension(mdim) :: xe
+  real(wp), dimension(mdim, mdim) :: ke
+  real(wp), dimension(mdim, mdim) :: me
+  real(wp) :: young, area, nu, thk
+  ! Hint for modal analysis and continuum elements:
+  !        real(wp) :: nu, dens, thk
+
+  ! Reset mass matrix
+  mb = 0.0
+
+  do e = 1, ne
+
+    ! Find coordinates and degrees of freedom
+    nen = int(element(e)%numnode)
+
+    do i = 1, nen
+      xe(2*i-1) = x(element(e)%ix(i),1)
+      xe(2*i  ) = x(element(e)%ix(i),2)
+      edof(2*i-1) = 2 * element(e)%ix(i) - 1
+      edof(2*i)   = 2 * element(e)%ix(i)
+    end do
+
+    ! Gather material properties and find element mass matrix
+    young = mprop(element(e)%mat)%young
+    nu = mprop(element(e)%mat)%nu
+    thk = mprop(element(e)%mat)%thk
+    
+
+    call plane42rect_ke(xe, young, nu, thk, ke, me)
+      !print *, 'ERROR in fea/buildstiff:'
+      !print *, 'Stiffness matrix for plane42rect elements not implemented -- you need to add your own code here'
+      !stop
+
+    ! Assemble into global matrix
+      do i = 1, 2*nen
+        do j = 1, 2*nen
+          ! check wether we are on the lower part of the Kmat
+          if (edof(i) >= edof(j)) then
+            mb(edof(i) - edof(j) + 1, edof(j)) = mb(edof(i) - edof(j) + 1, edof(j)) + me(i, j) ! stiffness matrix
+          end if
+        end do
+      end do
+  end do
+  ! print'(24f5.2)', transpose(kb)
+end subroutine buildmass
+
+!      _                        
+!  ___| |_ _   _ _ __ _ __ ___  
+! / __| __| | | | '__| '_ ` _ \ 
+! \__ \ |_| |_| | |  | | | | | |
+! |___/\__|\__,_|_|  |_| |_| |_|
+                                
+subroutine sturm_check(lambda_vec)
+
+  ! this subroutine performs the sturm check
+  use numeth
+  use fedata
+  use plane42rect
+  use processor
+  use build_matrix
+
+  
+  integer :: i, j, count ! iterators and counter
+  real(wp), dimension(neig), intent(in) ::  lambda_vec
+  real(wp), dimension(bw, neqn) :: a
+  
+  call buildmass
+
+  i = 0
+  j = 0
+
+  do i = 1, neig
+    a = 0.0
+    count = 0
+
+    a = kb - lambda_vec(i)*mb 
+    
+    call bfactor(a)
+    
+    do j = 1, neqn
+      if (a(1, j) < 0.0) then
+        count = count + 1
+      end if
+    end do
+    
+    if (count == i) then
+      print '(a i3 a)', 'Modeshape ', i, ' satisfies the strurm check'
+    else
+      print '(a i3 a)', 'Modeshape ', i, ' does not satisfy the strurm check'
+    end if
+
+  end do
+
+end subroutine sturm_check
 
 end module fea

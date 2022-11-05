@@ -194,7 +194,7 @@ module fedata
     ! EIGENVECTOR ANALISYS
     real(wp), dimension(:, :), allocatable :: ematrix
         !! Matrix containing the eigenvectors
-    integer :: neig = 7
+    integer :: neig = 6
         !! number of eigenvector we are looking for
     integer :: pmax = 10000
         !! max number of iterations
