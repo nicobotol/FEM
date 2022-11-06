@@ -5,7 +5,7 @@ module fea
   implicit none
   save
   private
-  public :: displ, initial, buildload, buildstiff, enforce, recover, eigen, mmul, computational_cost, single_eigen, buildmass, sturm_check
+  public :: displ, initial, buildload, buildstiff, enforce, recover, eigen, mmul, computational_cost, single_eigen, sturm_check
 
 contains
 
@@ -276,7 +276,7 @@ contains
     real(wp), dimension(mdim) :: xe
     real(wp), dimension(mdim, mdim) :: ke
     real(wp), dimension(mdim, mdim) :: me
-    real(wp) :: young, area, nu, thk
+    real(wp) :: young, area, nu, thk, dens
     ! Hint for modal analysis and continuum elements:
     !        real(wp) :: nu, dens, thk
 
@@ -285,8 +285,10 @@ contains
       kmat = 0.0
     else
       kb = 0.0
-    end if
+    end if 
 
+    mb = 0.0
+    
     do e = 1, ne
 
       ! Find coordinates and degrees of freedom
@@ -310,9 +312,10 @@ contains
           young = mprop(element(e)%mat)%young
           nu = mprop(element(e)%mat)%nu
           thk = mprop(element(e)%mat)%thk
+          dens = mprop(element(e)%mat)%dens
          
 
-          call plane42rect_ke(xe, young, nu, thk, ke, me)
+          call plane42rect_ke(xe, young, nu, dens, thk, ke, me)
             !print *, 'ERROR in fea/buildstiff:'
             !print *, 'Stiffness matrix for plane42rect elements not implemented -- you need to add your own code here'
             !stop
@@ -333,6 +336,7 @@ contains
             ! check wether we are on the lower part of the Kmat
             if (edof(i) >= edof(j)) then
               kb(edof(i) - edof(j) + 1, edof(j)) = kb(edof(i) - edof(j) + 1, edof(j)) + ke(i, j) ! stiffness matrix
+              mb(edof(i) - edof(j) + 1, edof(j)) = mb(edof(i) - edof(j) + 1, edof(j)) + me(i, j) ! stiffness matrix
             end if
           end do
         end do
@@ -384,9 +388,12 @@ contains
             kb(j, idof) = 0.0 ! wite 0 on the column
             if ((j <= idof)) then
               kb(j, idof - j + 1) = 0.0 ! write 0 on the diagonal
+              mb(j, idof - j + 1) = 0.0 ! write 0 on the diagonal
+              
             end if
           end do
         kb(1, idof) = 1.0 ! write 1 in the first row
+        mb(1, idof) = 1.0
         p(idof) = 0.0 ! enforce boundary on p
       end do
       ! print *, 'ERROR in fea/enforce'
@@ -399,100 +406,107 @@ contains
   !
   !--------------------------------------------------------------------------------------------------
   !
-  subroutine recover
+subroutine recover
 
-    !! This subroutine recovers the element stress, element strain,
-    !! and nodal reaction forces
+  !! This subroutine recovers the element stress, element strain,
+  !! and nodal reaction forces
 
-    use fedata
-    use link1
-    use plane42rect
+  use fedata
+  use link1
+  use plane42rect
 
-    integer :: e, i, nen
-    integer :: edof(mdim)
-    real(wp), dimension(mdim) :: xe, de
-    real(wp), dimension(mdim, mdim) :: ke
-    real(wp) :: young, area
+  integer :: e, i, nen
+  integer :: edof(mdim)
+  real(wp), dimension(mdim) :: xe, de
+  real(wp), dimension(mdim, mdim) :: ke
+  real(wp) :: young, area
 ! Hint for continuum elements:
 !        real(wp):: nu, dens, thk
-    real(wp), dimension(3) :: estrain, estress
-    real(wp) :: estress_vm, estress_1, estress_2, psi
-    real(wp) :: nu
-    real(wp), dimension(neqn) :: temp
+  real(wp), dimension(3) :: estrain, estress
+  real(wp) :: estress_vm, estress_1, estress_2, psi
+  real(wp) :: nu
+  real(wp), dimension(neqn) :: temp
 
-    ! Reset force vector
-    p = 0.0
+  ! Reset force vector
+  p = 0.0
 
-    do e = 1, ne
+  do e = 1, ne
 
-      ! Find coordinates etc...
-      nen = int(element(e)%numnode)
-      do i = 1,nen
-        xe(2*i-1) = x(element(e)%ix(i), 1)
-        xe(2*i)   = x(element(e)%ix(i), 2)
-        edof(2*i-1) = 2 * element(e)%ix(i) - 1
-        edof(2*i)   = 2 * element(e)%ix(i)
-        de(2*i-1) = d(edof(2*i-1))
-        de(2*i)   = d(edof(2*i))
-      end do
-
-      ! Find stress and strain
-      select case( int(element(e)%id) )
-      case( 1 ) ! thruss struct
-        young = mprop(element(e)%mat)%young
-        area  = mprop(element(e)%mat)%area
-        call link1_ke(xe, young, area, ke)
-        temp = matmul(ke(1:2*nen,1:2*nen), de(1:2*nen))
-        p(edof(1:2*nen)) = p(edof(1:2*nen)) + temp
-        call link1_ss(xe, de, young, estress, estrain)
-        stress(e, 1:3) = estress
-        strain(e, 1:3) = estrain
-      case( 2 ) ! continuum
-        young = mprop(element(e)%mat)%young
-        nu = mprop(element(e)%mat)%nu
-        call plane42rect_ss(xe, de, young, nu, estress, estrain, estress_vm, estress_1, estress_2, psi)
-        stress(e, 1:3) = estress
-        strain(e, 1:3) = estrain
-        stress_vm(e) = estress_vm
-        ! store principal stresses and direction
-        principal_stresses(e, 1) = estress_1
-        principal_stresses(e, 2) = estress_2
-        principal_stresses(e, 3) = psi
-
-      end select
+    ! Find coordinates etc...
+    nen = int(element(e)%numnode)
+    do i = 1,nen
+      xe(2*i-1) = x(element(e)%ix(i), 1)
+      xe(2*i)   = x(element(e)%ix(i), 2)
+      edof(2*i-1) = 2 * element(e)%ix(i) - 1
+      edof(2*i)   = 2 * element(e)%ix(i)
+      de(2*i-1) = d(edof(2*i-1))
+      de(2*i)   = d(edof(2*i))
     end do
-    ! print*, 'Von mises stress for point B'
-    ! print*, stress_vm(420)
-    !print*, 'Von mises stress for point B'
-    !print*, stress_vm(25)
 
-    !print*, 'Von mises stress'
-    !print'(f20.8)', stress_vm ! print von mises stress vector
-    !print*, 'End Von mises stress'
-  end subroutine recover
+    ! Find stress and strain
+    select case( int(element(e)%id) )
+    case( 1 ) ! thruss struct
+      young = mprop(element(e)%mat)%young
+      area  = mprop(element(e)%mat)%area
+      call link1_ke(xe, young, area, ke)
+      temp = matmul(ke(1:2*nen,1:2*nen), de(1:2*nen))
+      p(edof(1:2*nen)) = p(edof(1:2*nen)) + temp
+      call link1_ss(xe, de, young, estress, estrain)
+      stress(e, 1:3) = estress
+      strain(e, 1:3) = estrain
+    case( 2 ) ! continuum
+      young = mprop(element(e)%mat)%young
+      nu = mprop(element(e)%mat)%nu
+      call plane42rect_ss(xe, de, young, nu, estress, estrain, estress_vm, estress_1, estress_2, psi)
+      stress(e, 1:3) = estress
+      strain(e, 1:3) = estrain
+      stress_vm(e) = estress_vm
+      ! store principal stresses and direction
+      principal_stresses(e, 1) = estress_1
+      principal_stresses(e, 2) = estress_2
+      principal_stresses(e, 3) = psi
 
-  ! compute the cost to perform the calculations
-  subroutine computational_cost(n, band_w, total_cost)
-    use fedata
+    end select
+  end do
+  ! print*, 'Von mises stress for point B'
+  ! print*, stress_vm(420)
+  !print*, 'Von mises stress for point B'
+  !print*, stress_vm(25)
 
-    integer, intent(in) :: n ! number of equations
-    integer, intent(in) :: band_w ! bandwidth
-    real(wp), intent(out) :: total_cost ! number of equations
-    real(wp) :: decomposition_cost, substitution_cost
-    real(wp) :: n_real
-    ! LU factorization cost
-    n_real = real(n)
-    if (.not. banded) then
-      ! banded not implemented
-      decomposition_cost = n_real**3/3
-      substitution_cost = n_real**2
-    else 
-      ! banded implemented
-      decomposition_cost = band_w**2*n_real/2
-      substitution_cost = 2*band_w*n_real
-    endif
-    total_cost = decomposition_cost + substitution_cost
-  end subroutine computational_cost
+  !print*, 'Von mises stress'
+  !print'(f20.8)', stress_vm ! print von mises stress vector
+  !print*, 'End Von mises stress'
+end subroutine recover
+
+
+!                 _   
+!    ___ ___  ___| |_ 
+!   / __/ _ \/ __| __|
+!  | (_| (_) \__ \ |_ 
+!   \___\___/|___/\__|
+                    
+! compute the cost to perform the calculations
+subroutine computational_cost(n, band_w, total_cost)
+  use fedata
+
+  integer, intent(in) :: n ! number of equations
+  integer, intent(in) :: band_w ! bandwidth
+  real(wp), intent(out) :: total_cost ! number of equations
+  real(wp) :: decomposition_cost, substitution_cost
+  real(wp) :: n_real
+  ! LU factorization cost
+  n_real = real(n)
+  if (.not. banded) then
+    ! banded not implemented
+    decomposition_cost = n_real**3/3
+    substitution_cost = n_real**2
+  else 
+    ! banded implemented
+    decomposition_cost = band_w**2*n_real/2
+    substitution_cost = 2*band_w*n_real
+  endif
+  total_cost = decomposition_cost + substitution_cost
+end subroutine computational_cost
 
 subroutine single_eigen
 
@@ -745,28 +759,34 @@ subroutine eigen
 
   print '(f10.8)', omega_vec
   
-  call plotmatlabeig('Mode Shape', omega_vec(4), 1.0*ematrix(:,4), [10.0d0, 0.10d0])
+  ! call plotmatlabeig('Mode Shape', omega_vec(2), 1.0*ematrix(:,2), [10.0d0, 0.10d0])
 
   ! if not banded form imlemented then bandwith is 0
   if ( .not. banded) then
     bw = 0
   end if
 
-  print_thk = mprop(element(502)%mat)%thk
+  ! print_thk = mprop(element(502)%mat)%thk
 
-  print*, print_thk
-  ! Write on file
-  ! open(unit = 11, file = "results_cantilever.txt", position = "append")
-  open(unit = 11, file = "results_ex4.txt", position = "append")
-  write(11, '(f10.6 a f7.5 a f7.5 a f7.5 a f7.5 a f7.5 a f7.5 a)' ) print_thk, ',', omega_vec(1), ',', omega_vec(2), ',', omega_vec(3), ',', omega_vec(4), ',', omega_vec(5), ',', omega_vec(6)
-  close(11)
+  ! print*, print_thk
+  ! ! Write on file
+  ! ! open(unit = 11, file = "results_cantilever.txt", position = "append")
+  ! open(unit = 11, file = "results_ex4.txt", position = "append")
+  ! write(11, '(f10.6 a f7.5 a f7.5 a f7.5 a f7.5 a f7.5 a f7.5 a)' ) print_thk, ',', omega_vec(1), ',', omega_vec(2), ',', omega_vec(3), ',', omega_vec(4), ',', omega_vec(5), ',', omega_vec(6)
+  ! close(11)
 
   ! perform sturm check
-  ! call sturm_check(lambda_vec)
+  call sturm_check(lambda_vec)
 
 
 end subroutine eigen
 
+!                             _ 
+!   _ __ ___  _ __ ___  _   _| |
+!  | '_ ` _ \| '_ ` _ \| | | | |
+!  | | | | | | | | | | | |_| | |
+!  |_| |_| |_|_| |_| |_|\__,_|_|
+                              
 subroutine mmul(Xvec, Yvec)
   use fedata
   use plane42rect
@@ -804,9 +824,7 @@ subroutine mmul(Xvec, Yvec)
       edof(2*i)   = 2 * element(e)%ix(i)
     end do
 
-    call plane42rect_ke(xe, young, nu, thk, ke, me)
-    ! multiply the me by the density of the element
-    me = me*dens
+    call plane42rect_ke(xe, young, nu, dens, thk, ke, me)
 
     ! build element X
     do i = 1, 2*nen
@@ -825,66 +843,6 @@ subroutine mmul(Xvec, Yvec)
 
 end subroutine mmul
 
-subroutine buildmass
-
-  !! This subroutine builds the global stiffness matrix from
-  !! the local element stiffness matrices
-
-  use fedata
-  use link1
-  use plane42rect
-
-  integer :: e, i, j
-  integer :: nen
-! Hint for system matrix in band form:
-!        integer :: irow, icol
-  integer, dimension(mdim) :: edof
-  real(wp), dimension(mdim) :: xe
-  real(wp), dimension(mdim, mdim) :: ke
-  real(wp), dimension(mdim, mdim) :: me
-  real(wp) :: young, area, nu, thk
-  ! Hint for modal analysis and continuum elements:
-  !        real(wp) :: nu, dens, thk
-
-  ! Reset mass matrix
-  mb = 0.0
-
-  do e = 1, ne
-
-    ! Find coordinates and degrees of freedom
-    nen = int(element(e)%numnode)
-
-    do i = 1, nen
-      xe(2*i-1) = x(element(e)%ix(i),1)
-      xe(2*i  ) = x(element(e)%ix(i),2)
-      edof(2*i-1) = 2 * element(e)%ix(i) - 1
-      edof(2*i)   = 2 * element(e)%ix(i)
-    end do
-
-    ! Gather material properties and find element mass matrix
-    young = mprop(element(e)%mat)%young
-    nu = mprop(element(e)%mat)%nu
-    thk = mprop(element(e)%mat)%thk
-    
-
-    call plane42rect_ke(xe, young, nu, thk, ke, me)
-      !print *, 'ERROR in fea/buildstiff:'
-      !print *, 'Stiffness matrix for plane42rect elements not implemented -- you need to add your own code here'
-      !stop
-
-    ! Assemble into global matrix
-      do i = 1, 2*nen
-        do j = 1, 2*nen
-          ! check wether we are on the lower part of the Kmat
-          if (edof(i) >= edof(j)) then
-            mb(edof(i) - edof(j) + 1, edof(j)) = mb(edof(i) - edof(j) + 1, edof(j)) + me(i, j) ! stiffness matrix
-          end if
-        end do
-      end do
-  end do
-  ! print'(24f5.2)', transpose(kb)
-end subroutine buildmass
-
 !      _                        
 !  ___| |_ _   _ _ __ _ __ ___  
 ! / __| __| | | | '__| '_ ` _ \ 
@@ -901,36 +859,35 @@ subroutine sturm_check(lambda_vec)
   use build_matrix
 
   
-  integer :: i, j, count ! iterators and counter
+  integer :: j, count ! iterators and counter
   real(wp), dimension(neig), intent(in) ::  lambda_vec
   real(wp), dimension(bw, neqn) :: a
   
-  call buildmass
+  call buildstiff ! build stifness and mass matrix matrix
+  call enforce ! enforce boundary conditions
 
-  i = 0
-  j = 0
+  a = 0.0 ! initialize a
+  count = 0 ! initialize the counter
 
-  do i = 1, neig
-    a = 0.0
-    count = 0
+  a = kb - lambda_vec(neig)*mb ! compute the 
 
-    a = kb - lambda_vec(i)*mb 
-    
-    call bfactor(a)
-    
-    do j = 1, neqn
-      if (a(1, j) < 0.0) then
-        count = count + 1
-      end if
-    end do
-    
-    if (count == i) then
-      print '(a i3 a)', 'Modeshape ', i, ' satisfies the strurm check'
-    else
-      print '(a i3 a)', 'Modeshape ', i, ' does not satisfy the strurm check'
+  call bfactor(a)
+  
+  do j = 1, neqn
+    ! print '(f10.6)', kb(1,j)
+    if (a(1, j) < 0.0) then
+      count = count + 1
     end if
-
   end do
+
+  print '(a i3)', 'Count: ', count
+
+  if (count == neig) then
+    print '(a i3 a)', 'Modeshape ', neig, ' satisfies the strurm check'
+  else
+    print '(a i3 a)', 'Modeshape ', neig, ' does not satisfy the strurm check'
+  end if
+
 
 end subroutine sturm_check
 

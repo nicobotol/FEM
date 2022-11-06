@@ -32,7 +32,7 @@ module plane42rect
 
 contains
 
-  subroutine plane42rect_ke(xe, young, nu, thk, ke, me)
+  subroutine plane42rect_ke(xe, young, nu, dens, thk, ke, me)
     
 
     !! This subroutine constructs the stiffness matrix for
@@ -43,6 +43,7 @@ contains
     real(wp), intent(in) :: nu
         !! Poisson's Ratio for this element
     real(wp), intent(in) :: thk
+    real(wp), intent(in) :: dens
         !! Thickness of this element
     real(wp), dimension(:), intent(in) :: xe
         !! Nodal coordinates of this element in undeformed configuration
@@ -239,7 +240,7 @@ contains
           ! build local stiffness matrix (in case of modal analysis)
       
           temp_prod3 = matmul(transpose(N), N)
-          me = me + gauss_weight(i)*gauss_weight(ii)*temp_prod3*thk*det_J
+          me = me + gauss_weight(i)*gauss_weight(ii)*temp_prod3*thk*det_J*dens
 
         end do
       end do
