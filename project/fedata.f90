@@ -113,6 +113,8 @@ module fedata
       !! Strains at different places in the structure
     real(wp), dimension(:,:), allocatable :: mb
       !! Mass matrix
+    real(wp), dimension(:,:), allocatable :: cb
+      !! Damping matrix
     real(wp), dimension(:,:), allocatable :: strain
         !!
         !! * _i_-th row: strain in element _i_
@@ -199,6 +201,16 @@ module fedata
     integer :: pmax = 10000
         !! max number of iterations
     real(wp) :: epsilon = 1E-12
+
+    ! TRANSIENT ANALYSIS
+    real(wp) :: kappa = 0.1 ! viscous damping coefficient
+    real(wp) :: delta_t = 0.1 ! time step
+    integer :: transient_iter_max = 1000 ! maximum number of iteration for the transien analysis
+    integer :: loadtype = 1 ! type of external load
+      ! loadtype = 1 -> ramp
+      ! loadtype = 2 -> step
+      ! loadtype = 3 -> sine
+    real(wp) :: max_load_magnitude = 1 ! max value or amplitude of the load
 
 
 end module fedata

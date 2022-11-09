@@ -18,7 +18,7 @@ contains
 
     use fedata
     use link1
-    use plane42
+    use plane42rect
     use build_matrix
 
 ! Hint for continuum elements:
@@ -70,7 +70,7 @@ contains
     use numeth
     use processor
     use build_matrix
-    use plane42
+    use plane42rect
 
     integer :: e
     ! integer :: i
@@ -189,7 +189,7 @@ contains
     !! This subroutine builds the global load vector
 
     use fedata
-    use plane42
+    use plane42rect
 
     integer :: i, j, nen, eface
 ! Hint for continuum elements:
@@ -237,7 +237,7 @@ contains
         thk = mprop(element(e)%mat)%thk
 
         ! build re
-        call plane42_re(xe, eface, fe, thk, re)
+        call plane42rect_re(xe, eface, fe, thk, re)
 
         ! combine re in r vector
         do j = 1, mdim
@@ -267,7 +267,7 @@ contains
 
     use fedata
     use link1
-    use plane42
+    use plane42rect
 
     integer :: e, i, j
     integer :: nen
@@ -315,9 +315,9 @@ contains
           dens = mprop(element(e)%mat)%dens
          
 
-          call plane42_ke(xe, young, nu, thk, ke)
+          call plane42rect_ke(xe, young, nu, thk, ke)
             !print *, 'ERROR in fea/buildstiff:'
-            !print *, 'Stiffness matrix for plane42 elements not implemented -- you need to add your own code here'
+            !print *, 'Stiffness matrix for plane42rect elements not implemented -- you need to add your own code here'
             !stop
       end select
 
@@ -352,7 +352,7 @@ contains
 
     use fedata
     use link1
-    use plane42
+    use plane42rect
 
     integer :: e, i, j
     integer :: nen
@@ -383,9 +383,9 @@ contains
       thk = mprop(element(e)%mat)%thk
       dens = mprop(element(e)%mat)%dens
       
-      call plane42_me(xe, dens, me)
+      call plane42rect_me(xe, dens, me)
         !print *, 'ERROR in fea/buildstiff:'
-        !print *, 'Stiffness matrix for plane42 elements not implemented -- you need to add your own code here'
+        !print *, 'Stiffness matrix for plane42rect elements not implemented -- you need to add your own code here'
         !stop
 
         ! Hint: Can you eliminate the loops above by using a different Fortran array syntax?
@@ -414,7 +414,7 @@ contains
 
     use fedata
     use link1
-    use plane42
+    use plane42rect
 
     integer :: e, i, j
     integer :: nen
@@ -438,9 +438,9 @@ contains
         edof(2*i)   = 2 * element(e)%ix(i)
       end do
       
-      call plane42_ce(xe, kappa, ce)
+      call plane42rect_ce(xe, kappa, ce)
         !print *, 'ERROR in fea/buildstiff:'
-        !print *, 'Stiffness matrix for plane42 elements not implemented -- you need to add your own code here'
+        !print *, 'Stiffness matrix for plane42rect elements not implemented -- you need to add your own code here'
         !stop
 
         ! Hint: Can you eliminate the loops above by using a different Fortran array syntax?
@@ -524,7 +524,7 @@ subroutine recover
 
   use fedata
   use link1
-  use plane42
+  use plane42rect
 
   integer :: e, i, nen
   integer :: edof(mdim)
@@ -568,7 +568,7 @@ subroutine recover
     case( 2 ) ! continuum
       young = mprop(element(e)%mat)%young
       nu = mprop(element(e)%mat)%nu
-      call plane42_ss(xe, de, young, nu, estress, estrain, estress_vm, estress_1, estress_2, psi)
+      call plane42rect_ss(xe, de, young, nu, estress, estrain, estress_vm, estress_1, estress_2, psi)
       stress(e, 1:3) = estress
       strain(e, 1:3) = estrain
       stress_vm(e) = estress_vm
@@ -626,7 +626,7 @@ subroutine single_eigen
   use numeth
   use processor
   use build_matrix
-  use plane42
+  use plane42rect
 
   integer :: i, ii, idof
   ! integer :: i
@@ -754,7 +754,7 @@ subroutine eigen
   use numeth
   use processor
   use build_matrix
-  use plane42
+  use plane42rect
 
   integer :: i, ii, idof, l, j
   ! integer :: i
@@ -901,7 +901,7 @@ end subroutine eigen
                               
 subroutine mmul(Xvec, Yvec, mtype)
   use fedata
-  use plane42
+  use plane42rect
   use processor
 
   real(wp), dimension(:), intent(in) :: Xvec
@@ -939,17 +939,17 @@ subroutine mmul(Xvec, Yvec, mtype)
 
     select case(mtype)
     case ( 1 ) ! stiffness matrix multiplication
-      call plane42_ke(xe, young, nu, thk, m_element)
+      call plane42rect_ke(xe, young, nu, thk, m_element)
     case ( 2 ) ! mass matrix multiplication
-      call plane42_me(xe, dens, m_element)
+      call plane42rect_me(xe, dens, m_element)
 
     case ( 3 ) ! lumped mass matrix multiplication
       print*, 'Case not implemented yet'
       stop
 
     case ( 4 ) ! case for central difference explicit method
-      call plane42_me(xe, dens, me)
-      call plane42_ce(xe, kappa, ce)
+      call plane42rect_me(xe, dens, me)
+      call plane42rect_ce(xe, kappa, ce)
 
       m_element = me/delta_t**2 - ce/(2.0*delta_t)
     end select
@@ -982,7 +982,7 @@ subroutine sturm_check(lambda_vec)
   ! this subroutine performs the sturm check
   use numeth
   use fedata
-  use plane42
+  use plane42rect
   use processor
   use build_matrix
 
@@ -1028,7 +1028,7 @@ end subroutine sturm_check
 subroutine central_diff_exp
   ! This subroutine implements the central difference explicit method
   use fedata
-  use plane42
+  use plane42rect
 
   real(wp), dimension(bw, neqn) :: lhs ! left hand side of the equation
   real(wp) :: actual_time ! time step, total_time

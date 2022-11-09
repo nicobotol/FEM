@@ -22,7 +22,7 @@ FFLAGS += -ffree-line-length-512
 all: $(TARGET)
 
 # Declare objects, in hierachical order
-OBJS = types.o fedata.o numeth.o processor.o link1.o build_matrix.o plane42rect.o fea.o main.o
+OBJS = types.o fedata.o numeth.o processor.o link1.o build_matrix.o plane42rect.o plane42.o fea.o main.o
 
 
 # Compile the objects based on their dependencies
@@ -64,9 +64,17 @@ plane42rect.o:\
 	types.f90
 	$(FC) $(FCFLAGS) -c plane42rect.f90
 
+plane42.o:\
+	plane42.f90\
+	build_matrix.f90\
+	fedata.f90\
+	types.f90
+	$(FC) $(FCFLAGS) -c plane42.f90
+
 fea.o:\
 	fea.f90\
 	plane42rect.f90\
+	plane42.f90\
 	build_matrix.f90\
 	link1.f90\
 	processor.f90\
@@ -78,6 +86,7 @@ main.o:\
 	main.f90\
 	fea.f90\
 	plane42rect.f90\
+	plane42.f90\
 	build_matrix.f90\
 	link1.f90\
 	processor.f90\

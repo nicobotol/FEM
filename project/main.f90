@@ -27,7 +27,7 @@ program main
 !     stop
 ! end if
 
-!  call displ
+  call displ
 
   call eigen
 
