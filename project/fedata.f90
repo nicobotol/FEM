@@ -198,19 +198,22 @@ module fedata
         !! Matrix containing the eigenvectors
     integer :: neig = 6
         !! number of eigenvector we are looking for
-    integer :: pmax = 10000
+    integer :: pmax = 10
         !! max number of iterations
     real(wp) :: epsilon = 1E-12
 
     ! TRANSIENT ANALYSIS
-    real(wp) :: kappa = 0.1 ! viscous damping coefficient
-    real(wp) :: delta_t = 0.1 ! time step
-    integer :: transient_iter_max = 1000 ! maximum number of iteration for the transien analysis
-    integer :: loadtype = 1 ! type of external load
-      ! loadtype = 1 -> ramp
-      ! loadtype = 2 -> step
-      ! loadtype = 3 -> sine
-    real(wp) :: max_load_magnitude = 1 ! max value or amplitude of the load
+    real(wp) :: kappa = 0.0 ! viscous damping coefficient
+    real(wp) :: delta_t = 0.001 ! time step
+    integer :: transient_iter_max = 3000 ! maximum number of iteration for the transien analysis
+    integer :: load_type = 2 ! type of external load
+      ! load_type = 1 -> ramp
+      ! load_type = 2 -> step
+      ! load_type = 3 -> sine
+    real(wp) :: max_load_magnitude = 10000 ! max value or amplitude of the load
+    integer :: material_type = 1 ! type of material
+      ! material_type = 1 -> linear elastic
+      ! material_type = 2 -> non linear elastic
 
 
 end module fedata

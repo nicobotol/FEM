@@ -5,7 +5,7 @@ module fea
   implicit none
   save
   private
-  public :: displ, initial, buildload, buildstiff, buildmass, builddamping, enforce, recover, eigen, mmul, computational_cost, single_eigen, sturm_check, external_load_ft
+  public :: displ, initial, buildload, buildstiff, buildmass, builddamping, enforce, recover, eigen, mmul, computational_cost, single_eigen, sturm_check, external_load_ft, enforce_mat, enforce_vec, central_diff_exp
 
 contains
 
@@ -120,6 +120,7 @@ contains
     else
       
       call bfactor(kb)
+      p = p*max_load_magnitude
       
       call bsolve(kb, p)
       ! print*, 'Print displacement point b'
@@ -176,6 +177,8 @@ contains
     ! calculate the computational cost
     call computational_cost(neqn, bw, total_cost)
 
+    print*, 'Displacement from static case', d(620)
+    print*, 'Stress from static case', stress_vm(620)
     ! Write on file
     ! open(unit = 11, file = "results_band_renum.txt", position = "append")
     ! write(11, '(a a i4 a i5 a e9.4 a e9.3 )' ) trim(filename), ',', bw, ',', neqn, ',', time, ',', total_cost
@@ -951,7 +954,7 @@ subroutine mmul(Xvec, Yvec, mtype)
       call plane42_me(xe, dens, me)
       call plane42_ce(xe, kappa, ce)
 
-      m_element = me/delta_t**2 - ce/(2.0*delta_t)
+      m_element = me/(delta_t**2) - ce/(2.0*delta_t)
     end select
 
     ! build element X
@@ -1029,11 +1032,14 @@ subroutine central_diff_exp
   ! This subroutine implements the central difference explicit method
   use fedata
   use plane42
+  use numeth
 
   real(wp), dimension(bw, neqn) :: lhs ! left hand side of the equation
   real(wp) :: actual_time ! time step, total_time
   real(wp), dimension(neqn) :: d_n, d_n_minus, d_n_plus, r_ext, r_int, md_prod, mcd_prod, rhs
   integer :: i
+  real(wp), dimension(transient_iter_max) :: d_store ! vector where to save data
+  integer, dimension(transient_iter_max) :: i_store ! vector where to save iteration number
   
   ! initialize all the varaibles
   lhs = 0.0
@@ -1044,15 +1050,23 @@ subroutine central_diff_exp
   d_n_plus = 0.0
   r_ext = 0.0
   r_int = 0.0
+  d_store = 0.0
 
+  ! Load the gaussian quadrature points
+  call gauss_quadrature
 
+  ! build global matrix
+  call buildmass
+  call builddamping
+  
+  
   ! build the matrix on the lhs of the equation
   lhs = 1/delta_t**2*mb + cb/delta_t*0.5
-
-  call buildload ! build the load vector
-
+  call enforce_mat(lhs) ! enforce buindaries on lhs
+  call bfactor(lhs)
+  
   do i = 1, transient_iter_max ! loop over the maximum transient time
-
+    
     ! update d_n_minus and d_n
     d_n_minus = d_n
     d_n = d_n_plus
@@ -1061,24 +1075,30 @@ subroutine central_diff_exp
     call external_load_ft(actual_time, r_ext) ! build the time dependent load
 
     call internal_load_ft(d_n, r_int) ! build the internal load
-
+    
     call mmul(d_n, md_prod, 2) ! due the product between [M]d
-
+    
     call mmul(d_n_minus, mcd_prod, 4) ! last term of the sum
-
+    
     ! build the right hand side
     rhs = r_ext - r_int + 2.0/delta_t**2*md_prod - mcd_prod
 
-    call enforce_mat(lhs) ! enforce buindaries on lhs
     call enforce_vec(rhs) ! enforce boundaries on rhs
 
-    call bfactor(lhs)
     call bsolve(lhs, rhs)
-
+    
     d_n_plus = rhs ! store the previous 
-
+    
+    d_store(i) = d_n_plus(2*1691 - 1) ! store the displacement of one point
+    i_store(i) = i
   end do
 
+  ! Write on file
+  open(unit = 11, file = "results.txt", position = "append")
+  write(11, '(f11.5, a)' ) (d_store(i), ',', i = 1, transient_iter_max) 
+  close(11)
+
+  print*, 'Internla load on the element ', r_int(620)
 end subroutine central_diff_exp
 
 !             _                        _   _                 _ 
@@ -1086,29 +1106,122 @@ end subroutine central_diff_exp
 !   / _ \ \/ / __/ _ \ '__| '_ \ / _` | | | |/ _ \ / _` |/ _` |
 !  |  __/>  <| ||  __/ |  | | | | (_| | | | | (_) | (_| | (_| |
 !   \___/_/\_\\__\___|_|  |_| |_|\__,_|_| |_|\___/ \__,_|\__,_|
-                                                             
+
 subroutine external_load_ft(actual_time, r_ext)
   use fedata
-
+  
   real(wp), intent(in) :: actual_time
   real(wp), dimension(neqn), intent(out) :: r_ext
   real(wp) :: slope, mag ! slope and magnitude of the force
+  
+  call buildload ! build the load vector
 
-  select case(loadtype)
-  case( 1 ) ! ramp
+  select case(load_type)
+  case ( 1 ) ! ramp
     slope = max_load_magnitude/(delta_t*transient_iter_max) ! slope of the ramp
     mag = slope*actual_time ! magnitude of the force
     r_ext = mag*p ! give the magnitude to the load vector
-  case( 2 ) ! step
-    print*, 'Step load not implemented'
-    stop
+  case ( 2 ) ! step
+    if (actual_time < delta_t*transient_iter_max/100) then
+      r_ext = max_load_magnitude*p
+    else
+      r_ext = 0.0
+    end if
     
-  case( 3 ) ! sine
+  case ( 3 ) ! sine
     print*, 'Sine load not implemented'
     stop
-
+    
+  case ( 4 ) ! 
+    if (actual_time < delta_t*transient_iter_max/3) then
+      slope = 3*max_load_magnitude/(delta_t*transient_iter_max) ! slope of the ramp
+      mag = slope*actual_time ! magnitude of the force
+      r_ext = mag*p ! give the magnitude to the load vector
+    else 
+      r_ext = max_load_magnitude*p
+    end if
+    
   end select
 
 end subroutine external_load_ft
+
+
+!               __                                        _   
+!    ___ _ __  / _| ___  _ __ ___ ___     _ __ ___   __ _| |_ 
+!   / _ \ '_ \| |_ / _ \| '__/ __/ _ \   | '_ ` _ \ / _` | __|
+!  |  __/ | | |  _| (_) | | | (_|  __/   | | | | | | (_| | |_ 
+!   \___|_| |_|_|  \___/|_|  \___\___|___|_| |_| |_|\__,_|\__|
+!                                   |_____|                   
+subroutine enforce_mat(matr)
+
+  !! This subroutine enforces the support boundary conditions on a matrix
+
+  use fedata
+  real(wp), dimension(:,:), intent(inout) :: matr
+  integer :: i, idof, j
+ 
+  do i = 1, nb
+    idof = 0
+    idof = int(2*(bound(i,1)-1) + bound(i,2))
+      do j = 2, bw
+        matr(j, idof) = 0.0 ! wite 0 on the column
+        if ((j <= idof)) then
+          matr(j, idof - j + 1) = 0.0 ! write 0 on the diagonal
+        end if
+      end do
+    matr(1, idof) = 1.0 ! write 1 in the first row
+  end do
+
+end subroutine enforce_mat
+
+
+!               __                                     
+!    ___ _ __  / _| ___  _ __ ___ ___  __   _____  ___ 
+!   / _ \ '_ \| |_ / _ \| '__/ __/ _ \ \ \ / / _ \/ __|
+!  |  __/ | | |  _| (_) | | | (_|  __/  \ V /  __/ (__ 
+!   \___|_| |_|_|  \___/|_|  \___\___|___\_/ \___|\___|
+!                                   |_____|            
+
+subroutine enforce_vec(vect)
+
+  !! This subroutine enforces the support boundary conditions on a vector
+
+  use fedata
+
+  integer :: i, idof, j
+  real(wp), dimension(:), intent(inout) :: vect
+ 
+  idof = 0
+  do i = 1, nb
+    idof = int(2*(bound(i,1)-1) + bound(i,2))
+    vect(idof) = 0.0 ! enforce boundary on the vector
+  end do
+
+end subroutine enforce_vec
+
+!   _       _                        _   _                 _ 
+!  (_)_ __ | |_ ___ _ __ _ __   __ _| | | | ___   __ _  __| |
+!  | | '_ \| __/ _ \ '__| '_ \ / _` | | | |/ _ \ / _` |/ _` |
+!  | | | | | ||  __/ |  | | | | (_| | | | | (_) | (_| | (_| |
+!  |_|_| |_|\__\___|_|  |_| |_|\__,_|_| |_|\___/ \__,_|\__,_|
+                                                           
+subroutine internal_load_ft(d_n, r_int)
+
+  ! This subroutine computes the internal loads 
+
+  use fedata
+
+  real(wp), dimension(neqn), intent(in) :: d_n
+  real(wp), dimension(neqn), intent(out) :: r_int
+
+  select case(material_type) ! select the type of material used
+  case ( 1 ) ! linear elastic material
+    call mmul(d_n, r_int, 1) ! compute the internal load element by element
+  case ( 2 ) ! nonlinear material
+    print*, 'Material not implemented yet'
+    stop
+  end select
+
+end subroutine internal_load_ft
 
 end module fea
