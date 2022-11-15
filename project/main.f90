@@ -16,9 +16,9 @@ program main
   ! Initialize problem
   call initial
 
-  call displ
+  ! call displ
 
-  ! call eigen
+  call eigen
 
   call central_diff_exp
 

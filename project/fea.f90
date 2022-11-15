@@ -1089,16 +1089,18 @@ subroutine central_diff_exp
     
     d_n_plus = rhs ! store the previous 
     
-    d_store(i) = d_n_plus(2*1691 - 1) ! store the displacement of one point
+    d_store(i) = d_n_plus(2*306) ! store the displacement of one point
     i_store(i) = i
+    
   end do
 
   ! Write on file
-  open(unit = 11, file = "results.txt", position = "append")
+  ! open(unit = 11, file = "results.txt", position = "append")
+  open(unit = 11, file = "results.txt", status = "replace")
   write(11, '(f11.5, a)' ) (d_store(i), ',', i = 1, transient_iter_max) 
   close(11)
 
-  print*, 'Internla load on the element ', r_int(620)
+  print*, 'Internla load on the element ', r_int(1)
 end subroutine central_diff_exp
 
 !             _                        _   _                 _ 
@@ -1129,8 +1131,7 @@ subroutine external_load_ft(actual_time, r_ext)
     end if
     
   case ( 3 ) ! sine
-    print*, 'Sine load not implemented'
-    stop
+    r_ext = max_load_magnitude*sin(omega_load*actual_time)*p
     
   case ( 4 ) ! 
     if (actual_time < delta_t*transient_iter_max/3) then

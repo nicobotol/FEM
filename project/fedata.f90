@@ -205,15 +205,16 @@ module fedata
     ! TRANSIENT ANALYSIS
     real(wp) :: kappa = 0.0 ! viscous damping coefficient
     real(wp) :: delta_t = 0.001 ! time step
-    integer :: transient_iter_max = 3000 ! maximum number of iteration for the transien analysis
-    integer :: load_type = 2 ! type of external load
+    integer :: transient_iter_max = 8000 ! maximum number of iteration for the transien analysis
+    integer :: load_type = 3 ! type of external load
       ! load_type = 1 -> ramp
       ! load_type = 2 -> step
       ! load_type = 3 -> sine
-    real(wp) :: max_load_magnitude = 10000 ! max value or amplitude of the load
+    real(wp) :: max_load_magnitude = 10 ! max value or amplitude of the load
     integer :: material_type = 1 ! type of material
       ! material_type = 1 -> linear elastic
       ! material_type = 2 -> non linear elastic
+    real(wp) :: omega_load = 1 ! frequency of the harmonic input
 
 
 end module fedata
