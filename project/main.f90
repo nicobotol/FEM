@@ -16,11 +16,11 @@ program main
   ! Initialize problem
   call initial
 
-  ! call displ
+  call displ
 
   call eigen
 
-  call central_diff_exp
+  ! call central_diff_exp
 
   call stopwatch('stop')
 

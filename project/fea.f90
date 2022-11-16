@@ -5,7 +5,7 @@ module fea
   implicit none
   save
   private
-  public :: displ, initial, buildload, buildstiff, buildmass, builddamping, enforce, recover, eigen, mmul, computational_cost, single_eigen, sturm_check, external_load_ft, enforce_mat, enforce_vec, central_diff_exp
+  public :: displ, initial, buildload, buildstiff, buildmass, builddamping, enforce, recover, eigen, mmul, computational_cost, single_eigen, sturm_check, external_load_ft, enforce_mat, enforce_vec, central_diff_exp, courant_check
 
 contains
 
@@ -177,8 +177,8 @@ contains
     ! calculate the computational cost
     call computational_cost(neqn, bw, total_cost)
 
-    print*, 'Displacement from static case', d(620)
-    print*, 'Stress from static case', stress_vm(620)
+    print*, 'Displacement from static case', d(dof_disp)
+    ! print*, 'Stress from static case', stress_vm(620)
     ! Write on file
     ! open(unit = 11, file = "results_band_renum.txt", position = "append")
     ! write(11, '(a a i4 a i5 a e9.4 a e9.3 )' ) trim(filename), ',', bw, ',', neqn, ',', time, ',', total_cost
@@ -386,7 +386,7 @@ contains
       thk = mprop(element(e)%mat)%thk
       dens = mprop(element(e)%mat)%dens
       
-      call plane42_me(xe, dens, me)
+      call plane42_me(xe, dens, me, thk)
         !print *, 'ERROR in fea/buildstiff:'
         !print *, 'Stiffness matrix for plane42 elements not implemented -- you need to add your own code here'
         !stop
@@ -868,13 +868,13 @@ subroutine eigen
     lambda_vec(l) = lambda
     omega_vec(l) = lambda**0.5
 
-    print '(a i3 a f15.5)', 'Eigenmode: ', l, ' omega = ', omega_vec(l)
+    print '(a i3 a f15.5 a f15.5)', 'Eigenmode: ', l, ' omega [rad/s] = ', omega_vec(l), ' - f [Hz] = ', omega_vec(l)/(2*3.14)
 
   end do
 
   ! print '(f10.8)', omega_vec
   
-  ! call plotmatlabeig('Mode Shape', omega_vec(4), 1.0*ematrix(:,4), [10.0d0, 0.10d0])
+  call plotmatlabeig('Mode Shape', omega_vec(2), 1.0*ematrix(:,2), [10.0d0, 0.10d0])
 
   ! if not banded form imlemented then bandwith is 0
   if ( .not. banded) then
@@ -921,13 +921,17 @@ subroutine mmul(Xvec, Yvec, mtype)
   Yvec = 0.0
   
   do e = 1, ne
+    m_element = 0.0
+    ce = 0.0
+    me = 0.0
+
+    ! element properties
     nen = element(e)%numnode
-    ! element density
-    dens = mprop(element(e)%mat)%dens 
+    dens = mprop(element(e)%mat)%dens ! element density
     thk = mprop(element(e)%mat)%thk
     nu = mprop(element(e)%mat)%nu
     young = mprop(element(e)%mat)%young
-    
+
     ! clear the previous used vector 
     X_temp = 0.0
     Y_temp = 0.0
@@ -944,14 +948,14 @@ subroutine mmul(Xvec, Yvec, mtype)
     case ( 1 ) ! stiffness matrix multiplication
       call plane42_ke(xe, young, nu, thk, m_element)
     case ( 2 ) ! mass matrix multiplication
-      call plane42_me(xe, dens, m_element)
+      call plane42_me(xe, dens, m_element, thk)
 
     case ( 3 ) ! lumped mass matrix multiplication
       print*, 'Case not implemented yet'
       stop
 
     case ( 4 ) ! case for central difference explicit method
-      call plane42_me(xe, dens, me)
+      call plane42_me(xe, dens, me, thk)
       call plane42_ce(xe, kappa, ce)
 
       m_element = me/(delta_t**2) - ce/(2.0*delta_t)
@@ -1041,6 +1045,8 @@ subroutine central_diff_exp
   real(wp), dimension(transient_iter_max) :: d_store ! vector where to save data
   integer, dimension(transient_iter_max) :: i_store ! vector where to save iteration number
   
+  call courant_check
+
   ! initialize all the varaibles
   lhs = 0.0
   rhs = 0.0
@@ -1062,7 +1068,7 @@ subroutine central_diff_exp
   
   ! build the matrix on the lhs of the equation
   lhs = 1/delta_t**2*mb + cb/delta_t*0.5
-  call enforce_mat(lhs) ! enforce buindaries on lhs
+  call enforce_mat(lhs) ! enforce boundaries on lhs
   call bfactor(lhs)
   
   do i = 1, transient_iter_max ! loop over the maximum transient time
@@ -1070,7 +1076,7 @@ subroutine central_diff_exp
     ! update d_n_minus and d_n
     d_n_minus = d_n
     d_n = d_n_plus
-
+    
     actual_time = actual_time + delta_t 
     call external_load_ft(actual_time, r_ext) ! build the time dependent load
 
@@ -1082,14 +1088,15 @@ subroutine central_diff_exp
     
     ! build the right hand side
     rhs = r_ext - r_int + 2.0/delta_t**2*md_prod - mcd_prod
-
+    
     call enforce_vec(rhs) ! enforce boundaries on rhs
 
     call bsolve(lhs, rhs)
     
     d_n_plus = rhs ! store the previous 
     
-    d_store(i) = d_n_plus(2*306) ! store the displacement of one point
+    ! d_store(i) = r_ext(dof_disp) ! store the displacement of one point
+    d_store(i) = d_n_plus(dof_disp) ! store the displacement of one point
     i_store(i) = i
     
   end do
@@ -1097,7 +1104,7 @@ subroutine central_diff_exp
   ! Write on file
   ! open(unit = 11, file = "results.txt", position = "append")
   open(unit = 11, file = "results.txt", status = "replace")
-  write(11, '(f11.5, a)' ) (d_store(i), ',', i = 1, transient_iter_max) 
+  write(11, '(f15.8, a)' ) (d_store(i), ',', i = 1, transient_iter_max) 
   close(11)
 
   print*, 'Internla load on the element ', r_int(1)
@@ -1134,8 +1141,8 @@ subroutine external_load_ft(actual_time, r_ext)
     r_ext = max_load_magnitude*sin(omega_load*actual_time)*p
     
   case ( 4 ) ! 
-    if (actual_time < delta_t*transient_iter_max/3) then
-      slope = 3*max_load_magnitude/(delta_t*transient_iter_max) ! slope of the ramp
+    if (actual_time < delta_t*transient_iter_max/2) then
+      slope = 2*max_load_magnitude/(delta_t*transient_iter_max) ! slope of the ramp
       mag = slope*actual_time ! magnitude of the force
       r_ext = mag*p ! give the magnitude to the load vector
     else 
@@ -1189,7 +1196,7 @@ subroutine enforce_vec(vect)
 
   use fedata
 
-  integer :: i, idof, j
+  integer :: i, idof
   real(wp), dimension(:), intent(inout) :: vect
  
   idof = 0
@@ -1224,5 +1231,61 @@ subroutine internal_load_ft(d_n, r_int)
   end select
 
 end subroutine internal_load_ft
+
+!                                   _   
+!    ___ ___  _   _ _ __ __ _ _ __ | |_ 
+!   / __/ _ \| | | | '__/ _` | '_ \| __|
+!  | (_| (_) | |_| | | | (_| | | | | |_ 
+!   \___\___/ \__,_|_|  \__,_|_| |_|\__|
+                                      
+subroutine courant_check
+  ! courant check
+
+  use fedata
+  use plane42
+
+  real(wp) :: c 
+  real(wp) :: l, dens, young, courant_value, lmax
+  integer :: e, nen, j, emax
+  real(wp), dimension(8) :: xe
+
+  l = 0.0
+  lmax = 0.0
+
+  do e = 1, ne
+    nen = element(e)%numnode ! number of the nodes of e
+
+    do j = 1, nen
+      xe(2*j-1) = x(element(e)%ix(j),1)
+      xe(2*j  ) = x(element(e)%ix(j),2)
+      
+    end do
+
+    call element_edges(xe, l)
+    
+    if (l > lmax) then
+      lmax = l
+      emax = e
+    end if
+    
+  end do
+
+  young = mprop(element(emax)%mat)%young
+  dens = mprop(element(emax)%mat)%dens
+
+  c = sqrt(young/dens) ! sound speed in the bar
+  courant_value = l/c
+
+  print*, 'Courant time ', courant_value
+
+  if (courant_value < delta_t) then
+    print*, 'Courant check not atisfied'
+    stop
+  else 
+    print*, 'Courant check satisfied'
+  end if
+
+end subroutine courant_check
+
 
 end module fea

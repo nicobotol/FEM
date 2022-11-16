@@ -28,7 +28,7 @@ module plane42
   save
   
   private
-  public :: plane42_ke, plane42_re, plane42_ss, shape, gauss_quadrature, gauss_quadrature_bmat, plane42_me, plane42_ce
+  public :: plane42_ke, plane42_re, plane42_ss, shape, gauss_quadrature, gauss_quadrature_bmat, plane42_me, plane42_ce, element_edges
 
 contains
 
@@ -241,13 +241,14 @@ contains
     end if
   end subroutine plane42_ke
   
-  subroutine plane42_me(xe, dens, me)
+  subroutine plane42_me(xe, dens, me, thk)
     
 
     !! This subroutine constructs the mass matrix for
     !! a rectangular 4-noded element.
 
     real(wp), intent(in) :: dens
+    real(wp), intent(in) :: thk
         !! Thickness of this element
     real(wp), dimension(:), intent(in) :: xe
         !! Nodal coordinates of this element in undeformed configuration
@@ -292,7 +293,7 @@ contains
           ! build local stiffness matrix (in case of modal analysis)
       
           temp_prod3 = matmul(transpose(N), N)
-          me = me + gauss_weight(i)*gauss_weight(ii)*temp_prod3*det_J*dens
+          me = me + gauss_weight(i)*gauss_weight(ii)*temp_prod3*det_J*dens*thk
 
         end do
       end do
@@ -766,5 +767,23 @@ subroutine gauss_quadrature_bmat
   end select
 
 end subroutine gauss_quadrature_bmat
+
+subroutine element_edges(xe, l)
+  ! This subroutine computes the longest edge of an element
+  use fedata
+  real(wp), dimension(8), intent(in):: xe
+  real(wp), intent(out)::  l
+  real(wp) ::  aa, bb, dd, ee
+
+  l = 0.0
+
+  aa = ((xe(3) - xe(1))**2 + (xe(4) - xe(2))**2)**0.5 ! edge
+  bb = ((xe(7) - xe(1))**2 + (xe(8) - xe(2))**2)**0.5 ! edge 
+  dd = ((xe(3) - xe(5))**2 + (xe(4) - xe(6))**2)**0.5 ! edge
+  ee = ((xe(5) - xe(7))**2 + (xe(6) - xe(8))**2)**0.5 ! edge
+
+  l = min(abs(aa), abs(bb), abs(dd), abs(ee))
+  
+end subroutine element_edges
 
 end module plane42

@@ -4,7 +4,7 @@ clc
 
 s = readmatrix('results.txt'); % signal
 
-Ts = 0.001; % sample period
+Ts = 1E-6; % sample period
 fs = 1/Ts; % sample frequency
 
 figure(1)
