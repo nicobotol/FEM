@@ -28,7 +28,7 @@ module plane42
   save
   
   private
-  public :: plane42_ke, plane42_re, plane42_ss, shape, gauss_quadrature, gauss_quadrature_bmat, plane42_me, plane42_ce, element_edges
+  public :: plane42_ke, plane42_re, plane42_ss, shape, gauss_quadrature, gauss_quadrature_bmat, plane42_me, plane42_ce, element_edges, element_area, plane42_me_lumped, shape_lumped
 
 contains
 
@@ -299,6 +299,91 @@ contains
       end do
   end subroutine plane42_me
 
+!   _                                _                            
+!  | |_   _ _ __ ___  _ __   ___  __| |  _ __ ___   __ _ ___ ___  
+!  | | | | | '_ ` _ \| '_ \ / _ \/ _` | | '_ ` _ \ / _` / __/ __| 
+!  | | |_| | | | | | | |_) |  __/ (_| | | | | | | | (_| \__ \__ \ 
+!  |_|\__,_|_| |_| |_| .__/ \___|\__,_| |_| |_| |_|\__,_|___/___/ 
+!                    |_|                                          
+  subroutine plane42_me_lumped(xe, dens, me_lumped, thk)
+    
+
+    !! This subroutine constructs the lumped mass matrix 
+
+    real(wp), intent(in) :: dens
+    real(wp), intent(in) :: thk
+        !! Thickness of this element
+    real(wp), dimension(:), intent(in) :: xe
+        !! Nodal coordinates of this element in undeformed configuration
+        !!
+        !! * `xe(1:2)` = \((x,y)\)-coordinates of element node 1
+        !! * `xe(3:4)` = \((x,y)\)-coordinates of element node 1
+        !! * `xe(5:6)` = \((x,y)\)-coordinates of element node 2
+        !! * `xe(7:8)` = \((x,y)\)-coordinates of element node 2
+        !!
+        !! See also [[plane42]]
+    real(wp), dimension(:), intent(out) :: me_lumped
+        !! Lumped mass matrix
+
+    real(wp) :: eta ! point where to evaluate the gaussian quadrature
+    real(wp) :: xi ! point where to evaluate the gaussian quadrature
+    real(wp) :: det_J
+    real(wp), dimension(8) :: N
+    integer :: i, ii ! iterators
+    real(wp), dimension(2,2) :: J
+    real(wp), dimension(8) :: temp_prod3
+    real(wp) :: e_area, m ! element area and mass
+    real(wp) :: sx, sy ! scaling coefficinents
+
+    call element_area(xe, e_area) ! calculate the area of the element
+
+    m = e_area*thk*dens ! total mass of the element
+    
+    me_lumped = 0.0 ! initialize lumped me
+    sx = 0.0
+    sy = 0.0
+
+    do i = 1, ng
+      do ii = 1, ng
+        
+        xi = gauss_location(i)
+        eta = gauss_location(ii)
+
+        call shape_lumped(eta, xi, xe, N, J, det_J)
+
+        ! build local stiffness matrix (in case of modal analysis)
+    
+        temp_prod3(1) = N(1)*N(1)
+        temp_prod3(2) = N(2)*N(2)
+        temp_prod3(3) = N(3)*N(3)
+        temp_prod3(4) = N(4)*N(4)
+        temp_prod3(5) = N(5)*N(5)
+        temp_prod3(6) = N(6)*N(6)
+        temp_prod3(7) = N(7)*N(7)
+        temp_prod3(8) = N(8)*N(8)
+
+        me_lumped = me_lumped + gauss_weight(i)*gauss_weight(ii)*temp_prod3*det_J*dens*thk
+
+      end do
+    end do
+
+    ! compute s coefficients for the 2 dofs
+    do i = 1, 4
+      sx = sx + me_lumped(2*i - 1)
+      sy = sy + me_lumped(2*i)
+    end do
+
+    ! scale the elements of the lumped matrix 
+    do i = 1, 4
+      me_lumped(2*i - 1) = me_lumped(2*i - 1)/sx
+      me_lumped(2*i) = me_lumped(2*i)/sy
+    end do
+
+    ! scale the local matrix by element the element matrix 
+    me_lumped = me_lumped*m
+
+  end subroutine plane42_me_lumped
+
   subroutine plane42_ce(xe, kappa, ce)
     
 
@@ -444,7 +529,74 @@ contains
     B = matmul(L, temp_prod)
 
   end subroutine shape
-!
+
+  !       _                        _                                _ 
+  !   ___| |__   __ _ _ __   ___  | |_   _ _ __ ___  _ __   ___  __| |
+  !  / __| '_ \ / _` | '_ \ / _ \ | | | | | '_ ` _ \| '_ \ / _ \/ _` |
+  !  \__ \ | | | (_| | |_) |  __/ | | |_| | | | | | | |_) |  __/ (_| |
+  !  |___/_| |_|\__,_| .__/ \___| |_|\__,_|_| |_| |_| .__/ \___|\__,_|
+  !                  |_|                            |_|               
+  subroutine shape_lumped(eta, xi, xe, N, J, det_J)
+    real(wp), intent(in) :: eta
+    real(wp), intent(in) :: xi
+    real(wp), dimension(:), intent(in) :: xe
+    real(wp), dimension(8), intent(out) :: N ! element shape matrix
+    real(wp), dimension(2,2), intent(out) :: J ! jacobian
+    real(wp), intent(out) :: det_J
+    real(wp), dimension(4) :: dN_dxi, dN_deta
+    real(wp), dimension(3,4) :: L
+    integer :: i ! iterator
+    real(wp) :: N1, N2, N3, N4
+
+    ! initialize l matrix
+    L = 0
+    L(1, 1) = 1.0
+    L(2, 4) = 1.0
+    L(3, 2) = 1.0
+    L(3, 3) = 1.0
+
+    ! build the element N matrix (shape function)
+    N = 0.0 ! initialize the matrix
+    N1 = 0.25*(1 - xi)*(1 - eta) ! build the entrance of the matrix
+    N2 = 0.25*(1 + xi)*(1 - eta)
+    N3 = 0.25*(1 + xi)*(1 + eta)
+    N4 = 0.25*(1 - xi)*(1 + eta)
+    ! insert the elements
+    N(1) = N1
+    N(2) = N1
+    N(3) = N2
+    N(4) = N2
+    N(5) = N3
+    N(6) = N3
+    N(7) = N4
+    N(8) = N4
+
+    ! build the vectors of N derivate
+    dN_dxi(1) = - 0.25*(1 - eta)
+    dN_dxi(2) =  0.25*(1 - eta)
+    dN_dxi(3) =  0.25*(1 + eta)
+    dN_dxi(4) = - 0.25*(1 + eta)
+
+    dN_deta(1) = - 0.25*(1 - xi )
+    dN_deta(2) = - 0.25*(1 + xi )
+    dN_deta(3) =  0.25*(1 + xi )
+    dN_deta(4) =  0.25*(1 - xi )
+
+    ! initialize Jacobian
+    J = 0;
+    do i = 1, 4
+      J(1, 1) = J(1, 1) + dN_dxi(i)*xe(2*i - 1)
+      J(1, 2) = J(1, 2) + dN_dxi(i)*xe(2*i)
+      J(2, 1) = J(2, 1) + dN_deta(i)*xe(2*i - 1)
+      J(2, 2) = J(2, 2) + dN_deta(i)*xe(2*i)
+    end do
+
+    ! compute the determinat of the jacobian
+    det_J = J(1, 1)*J(2, 2) - J(1, 2)*J(2, 1)
+
+  end subroutine shape_lumped
+
+  !
   !--------------------------------------------------------------------------------------------------
   !
   subroutine plane42_re(xe, eface, fe, thk, re)
@@ -768,6 +920,13 @@ subroutine gauss_quadrature_bmat
 
 end subroutine gauss_quadrature_bmat
 
+!        _                           _              _                 
+!    ___| | ___ _ __ ___   ___ _ __ | |_    ___  __| | __ _  ___  ___ 
+!   / _ \ |/ _ \ '_ ` _ \ / _ \ '_ \| __|  / _ \/ _` |/ _` |/ _ \/ __|
+!  |  __/ |  __/ | | | | |  __/ | | | |_  |  __/ (_| | (_| |  __/\__ \
+!   \___|_|\___|_| |_| |_|\___|_| |_|\__|  \___|\__,_|\__, |\___||___/
+!                                                     |___/           
+
 subroutine element_edges(xe, l)
   ! This subroutine computes the longest edge of an element
   use fedata
@@ -785,5 +944,38 @@ subroutine element_edges(xe, l)
   l = min(abs(aa), abs(bb), abs(dd), abs(ee))
   
 end subroutine element_edges
+
+  !                                 __        _                           _   
+  !    __ _ _ __ ___  __ _    ___  / _|   ___| | ___ _ __ ___   ___ _ __ | |_ 
+  !   / _` | '__/ _ \/ _` |  / _ \| |_   / _ \ |/ _ \ '_ ` _ \ / _ \ '_ \| __|
+  !  | (_| | | |  __/ (_| | | (_) |  _| |  __/ |  __/ | | | | |  __/ | | | |_ 
+  !   \__,_|_|  \___|\__,_|  \___/|_|    \___|_|\___|_| |_| |_|\___|_| |_|\__|
+  
+  ! compute the area using Heron's formula
+subroutine element_area(xe, e_area)
+  use fedata
+  real(wp), dimension(8), intent(in):: xe
+  real(wp), intent(out):: e_area
+  real(wp) :: aa, bb, cc, dd, ee, s1, s2 ! edges of the block
+  real(wp) :: A1, A2
+
+  A1 = 0.0 ! area of the 1st triangle (half of quadrilater's area)
+  A2 = 0.0 ! area of the 2nd triangle (half of quadrilater's area)
+
+  aa = ((xe(3) - xe(1))**2 + (xe(4) - xe(2))**2)**0.5 ! edge
+  bb = ((xe(7) - xe(1))**2 + (xe(8) - xe(2))**2)**0.5 ! edge
+  cc = ((xe(3) - xe(7))**2 + (xe(4) - xe(8))**2)**0.5 ! diagonal 
+  dd = ((xe(3) - xe(5))**2 + (xe(4) - xe(6))**2)**0.5 ! edge
+  ee = ((xe(5) - xe(7))**2 + (xe(6) - xe(8))**2)**0.5 ! edge
+  
+  s1 = (aa + bb + cc)*0.5 ! semiperimeter of 1st triangle
+  s2 = (ee + dd + cc)*0.5 ! semiperimeter of 2nd triangle
+  
+  A1 = (s1*(s1 - aa)*(s1 - bb)*(s1 - cc))**0.5 ! area of 1st triangle
+  A2 = (s2*(s2 - dd)*(s2 - ee)*(s2 - cc))**0.5 ! area of 2nd triangle
+
+  e_area = A1 + A2 ! element area
+  
+end subroutine element_area
 
 end module plane42

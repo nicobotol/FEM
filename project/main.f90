@@ -20,7 +20,7 @@ program main
 
   call eigen
 
-  ! call central_diff_exp
+  call central_diff_exp
 
   call stopwatch('stop')
 

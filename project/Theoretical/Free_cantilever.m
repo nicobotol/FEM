@@ -3,7 +3,7 @@ E = 2.11E11;
 rho = 7.6E3;
 thk = 0.05;
 h = 0.05;
-L = 1;
+L = 2;
 I = h^3*thk/12;
 A = h*thk;
 
@@ -21,4 +21,4 @@ freq_long = omega_long/(2*pi);
 
 % total vibrations
 omega = sort([omega_lateral omega_long]);
-omega(1:5)/pi*0.5
+omega(1:6)/pi*0.5

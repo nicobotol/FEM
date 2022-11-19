@@ -40,6 +40,9 @@ contains
       !print*, bw
       ! allocate the memory for banded stiffness matrix and mass matrix
       allocate (mb(bw, neqn))
+      if (banded) then ! allocate the memory for the banded matrix
+        allocate(mb_lumped(neqn))
+      end if
       allocate (kb(bw, neqn))
       allocate (cb(bw, neqn)) ! damping stiffness matrix
     end if
@@ -289,8 +292,6 @@ contains
     else
       kb = 0.0
     end if 
-
-    mb = 0.0
     
     do e = 1, ne
 
@@ -404,6 +405,63 @@ contains
     ! print'(24f5.2)', transpose(kb)
   end subroutine buildmass
 
+  !   _                                _                           
+  !  | |_   _ _ __ ___  _ __   ___  __| |  _ __ ___   __ _ ___ ___ 
+  !  | | | | | '_ ` _ \| '_ \ / _ \/ _` | | '_ ` _ \ / _` / __/ __|
+  !  | | |_| | | | | | | |_) |  __/ (_| | | | | | | | (_| \__ \__ \
+  !  |_|\__,_|_| |_| |_| .__/ \___|\__,_| |_| |_| |_|\__,_|___/___/
+  !                    |_|                                         
+  subroutine buildmass_lumped
+
+    !! This subroutine builds the global mass matrix in lumped form from
+    !! the local element mass matrices
+
+    use fedata
+    use link1
+    use plane42
+
+    integer :: e, i
+    integer :: nen
+! Hint for system matrix in band form:
+!        integer :: irow, icol
+    integer, dimension(mdim) :: edof
+    real(wp), dimension(mdim) :: xe
+    real(wp), dimension(mdim) :: me_lumped
+    real(wp) :: thk, dens
+    ! Hint for modal analysis and continuum elements:
+    !        real(wp) :: nu, dens, thk
+
+    mb_lumped = 0.0
+    
+    do e = 1, ne
+
+      ! Find coordinates and degrees of freedom
+      nen = int(element(e)%numnode)
+
+      do i = 1, nen
+        xe(2*i-1) = x(element(e)%ix(i),1)
+        xe(2*i  ) = x(element(e)%ix(i),2)
+        edof(2*i-1) = 2 * element(e)%ix(i) - 1
+        edof(2*i)   = 2 * element(e)%ix(i)
+      end do
+
+
+      thk = mprop(element(e)%mat)%thk
+      dens = mprop(element(e)%mat)%dens
+      
+      call plane42_me_lumped(xe, dens, me_lumped, thk)
+        !print *, 'ERROR in fea/buildstiff:'
+        !print *, 'Stiffness matrix for plane42 elements not implemented -- you need to add your own code here'
+        !stop
+
+        ! Hint: Can you eliminate the loops above by using a different Fortran array syntax?
+        do i = 1, 2*nen
+          mb_lumped(edof(i)) = mb_lumped(edof(i)) + me_lumped(i) ! lumped mass matrix
+        end do
+    end do
+    ! print'(24f5.2)', transpose(kb)
+  end subroutine buildmass_lumped
+
 !   _           _ _     _     _                       _             
 !  | |__  _   _(_) | __| | __| | __ _ _ __ ___  _ __ (_)_ __   __ _ 
 !  | '_ \| | | | | |/ _` |/ _` |/ _` | '_ ` _ \| '_ \| | '_ \ / _` |
@@ -451,7 +509,7 @@ contains
           do j = 1, 2*nen
             ! check wether we are on the lower part of the Kmat
             if (edof(i) >= edof(j)) then
-              cb(edof(i) - edof(j) + 1, edof(j)) = mb(edof(i) - edof(j) + 1, edof(j)) + ce(i, j) ! stiffness matrix
+              cb(edof(i) - edof(j) + 1, edof(j)) = cb(edof(i) - edof(j) + 1, edof(j)) + ce(i, j) ! stiffness matrix
             end if
           end do
         end do
@@ -874,7 +932,7 @@ subroutine eigen
 
   ! print '(f10.8)', omega_vec
   
-  call plotmatlabeig('Mode Shape', omega_vec(2), 1.0*ematrix(:,2), [10.0d0, 0.10d0])
+  call plotmatlabeig('Mode Shape', omega_vec(5), 1.0*ematrix(:,5), [10.0d0, 0.10d0])
 
   ! if not banded form imlemented then bandwith is 0
   if ( .not. banded) then
@@ -913,6 +971,7 @@ subroutine mmul(Xvec, Yvec, mtype)
   real(wp) ::  young, nu, thk, dens
   real(wp), dimension(8) :: xe
   real(wp), dimension(8, 8) :: me, ce, m_element 
+  real(wp), dimension(8) :: m_element_lumped 
   integer :: e, i ! iterators
   integer :: nen
   integer, dimension(8) :: edof
@@ -951,14 +1010,22 @@ subroutine mmul(Xvec, Yvec, mtype)
       call plane42_me(xe, dens, m_element, thk)
 
     case ( 3 ) ! lumped mass matrix multiplication
-      print*, 'Case not implemented yet'
-      stop
+      call plane42_me_lumped(xe, dens, m_element_lumped, thk)
 
     case ( 4 ) ! case for central difference explicit method
       call plane42_me(xe, dens, me, thk)
       call plane42_ce(xe, kappa, ce)
 
       m_element = me/(delta_t**2) - ce/(2.0*delta_t)
+
+    case ( 5 ) ! case for central difference explicit method
+      call plane42_me_lumped(xe, dens, m_element_lumped, thk)
+      call plane42_ce(xe, kappa, ce)
+
+      m_element = -ce/(2.0*delta_t)
+      do i = 1, 8
+        m_element(i,i) = m_element(i,i) + m_element_lumped(i)/(delta_t**2)
+      end do
     end select
 
     ! build element X
@@ -966,8 +1033,15 @@ subroutine mmul(Xvec, Yvec, mtype)
       X_temp(i) = Xvec(edof(i))
     end do
 
-    ! do the multiplication
-    Y_temp = matmul(m_element, X_temp)
+    select case(mtype)
+    case(1, 2, 4, 5)
+      ! do the multiplication
+      Y_temp = matmul(m_element, X_temp)
+    case(3)
+      do i = 1,8
+        Y_temp(i) = m_element_lumped(i)*X_temp(i)
+      end do
+    end select
 
     ! assemble Yvect
     do i = 1, 2*nen
@@ -1062,12 +1136,20 @@ subroutine central_diff_exp
   call gauss_quadrature
 
   ! build global matrix
-  call buildmass
   call builddamping
   
-  
-  ! build the matrix on the lhs of the equation
-  lhs = 1/delta_t**2*mb + cb/delta_t*0.5
+  if (.not. lumped) then
+    call buildmass
+    ! build the matrix on the lhs of the equation
+    lhs = 1/delta_t**2*mb + cb/delta_t*0.5
+  else 
+    call buildmass_lumped
+    lhs = cb/delta_t*0.5
+    do i = 1, neqn
+      lhs(1, i) = lhs(1, i) + 1/delta_t**2*mb_lumped(i)
+    end do
+  end if
+
   call enforce_mat(lhs) ! enforce boundaries on lhs
   call bfactor(lhs)
   
@@ -1082,10 +1164,16 @@ subroutine central_diff_exp
 
     call internal_load_ft(d_n, r_int) ! build the internal load
     
-    call mmul(d_n, md_prod, 2) ! due the product between [M]d
-    
-    call mmul(d_n_minus, mcd_prod, 4) ! last term of the sum
-    
+    if (.not. lumped) then ! select whether we have lumped mass or not
+      call mmul(d_n, md_prod, 2) ! due the product between [M]d
+      
+      call mmul(d_n_minus, mcd_prod, 4) ! last term of the sum
+    else 
+      call mmul(d_n, md_prod, 3) ! due the product between [M]d
+      
+      call mmul(d_n_minus, mcd_prod, 5) ! last term of the sum
+    end if
+
     ! build the right hand side
     rhs = r_ext - r_int + 2.0/delta_t**2*md_prod - mcd_prod
     
@@ -1141,12 +1229,20 @@ subroutine external_load_ft(actual_time, r_ext)
     r_ext = max_load_magnitude*sin(omega_load*actual_time)*p
     
   case ( 4 ) ! 
+    if (actual_time < delta_t*transient_iter_max/5) then
+      slope = 5*max_load_magnitude/(delta_t*transient_iter_max) ! slope of the ramp
+      mag = slope*actual_time ! magnitude of the force
+      r_ext = mag*p ! give the magnitude to the load vector
+    else 
+      r_ext = max_load_magnitude*p
+    end if
+  case ( 5 ) ! ramp + remove of the load
     if (actual_time < delta_t*transient_iter_max/2) then
       slope = 2*max_load_magnitude/(delta_t*transient_iter_max) ! slope of the ramp
       mag = slope*actual_time ! magnitude of the force
       r_ext = mag*p ! give the magnitude to the load vector
     else 
-      r_ext = max_load_magnitude*p
+      r_ext = 0.0
     end if
     
   end select

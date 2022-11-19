@@ -1,13 +1,17 @@
-close all
+% close all
 clear
 clc
 
 s = readmatrix('results.txt'); % signal
-
-Ts = 1E-6; % sample period
+% s = textread('lb_dhn.txt'); % signal
+% s = s(:,1);
+% N = size(s, 1); % number of points of the signal
+% s = s(N/2:end);
+Ts = 2E-6; % sample period
+% Ts = 9E-5; % sample period
 fs = 1/Ts; % sample frequency
 
-figure(1)
+figure()
 plot(s)
 
 % apply zero padding
@@ -21,7 +25,7 @@ S = fft(s); % fft of the signal
 S_oneSide = S(1:N/2); % one side FFT
 S_mag = abs(S_oneSide)/(N/2);
 
-figure(2)
+figure()
 plot(f, S_mag)
 xlabel('Frequency [Hz]')
 ylabel('Magnitude')
