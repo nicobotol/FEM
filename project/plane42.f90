@@ -219,7 +219,7 @@ contains
       ! gauss_weight(1) = 1.0
       ! gauss_weight(2) = 1.0
 
-      ke = 0 ! initilize ke
+      ke = 0.0 ! initilize ke
       do i = 1, ng
         do ii = 1, ng
           
@@ -583,7 +583,7 @@ contains
     dN_deta(4) =  0.25*(1 - xi )
 
     ! initialize Jacobian
-    J = 0;
+    J = 0.0;
     do i = 1, 4
       J(1, 1) = J(1, 1) + dN_dxi(i)*xe(2*i - 1)
       J(1, 2) = J(1, 2) + dN_dxi(i)*xe(2*i)

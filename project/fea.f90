@@ -1229,8 +1229,8 @@ subroutine external_load_ft(actual_time, r_ext)
     r_ext = max_load_magnitude*sin(omega_load*actual_time)*p
     
   case ( 4 ) ! 
-    if (actual_time < delta_t*transient_iter_max/5) then
-      slope = 5*max_load_magnitude/(delta_t*transient_iter_max) ! slope of the ramp
+    if (actual_time < delta_t*transient_iter_max/2.0) then
+      slope = 2.0*max_load_magnitude/(delta_t*transient_iter_max) ! slope of the ramp
       mag = slope*actual_time ! magnitude of the force
       r_ext = mag*p ! give the magnitude to the load vector
     else 
