@@ -203,9 +203,9 @@ module fedata
     real(wp) :: epsilon = 1E-12
 
     ! TRANSIENT ANALYSIS
-    real(wp) :: kappa = 0.0000 ! viscous damping coefficient
-    real(wp) :: delta_t = 2E-6 ! time step
-    integer :: transient_iter_max = 20000 ! maximum number of iteration for the transien analysis
+    real(wp) :: kappa = 0.000 ! viscous damping coefficient
+    real(wp) :: delta_t = 2.2E-6 ! time step
+    integer :: transient_iter_max = 100000 ! maximum number of iteration for the transien analysis
     integer :: load_type = 4 ! type of external load
       ! load_type = 1 -> ramp
       ! load_type = 2 -> step
@@ -217,9 +217,17 @@ module fedata
       ! material_type = 1 -> linear elastic
       ! material_type = 2 -> non linear elastic
     real(wp) :: omega_load = 300 ! frequency of the harmonic input
-    integer :: dof_disp = 2*152 ! degree of freedom to be displayed
+    integer :: dof_disp = 2*753 ! degree of freedom to be displayed
     logical, parameter :: lumped = .true. ! use lumped mass
     real(wp),  dimension(:), allocatable :: mb_lumped
-
+    real(wp) :: beta = 1.0/4.0 ! coefficient for newmark method
+    real(wp) :: gamma = 1.0/2.0 ! coefficient for newmark method
+    integer :: method = 1 ! type of transient method
+      ! method = 1 -> central difference explicit 
+      ! method = 2 -> newmark
+      ! method = 3 -> no dynaimc analysis 
+    logical, parameter :: proportional_damping = .false.
+    real(wp) :: alpha_damping = 0.0
+    real(wp) :: beta_damping = 0.0
 
 end module fedata

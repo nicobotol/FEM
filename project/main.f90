@@ -5,6 +5,7 @@ program main
   
   use processor
   use fea
+  use fedata
   
   implicit none
   
@@ -20,7 +21,14 @@ program main
 
   call eigen
 
-  call central_diff_exp
+  select case ( method )
+  case ( 1 ) ! central different method
+    call central_diff_exp
+  case ( 2 ) ! newmark method
+    call newmark_imp
+  case (3)
+    
+  end select
 
   call stopwatch('stop')
 

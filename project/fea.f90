@@ -5,7 +5,7 @@ module fea
   implicit none
   save
   private
-  public :: displ, initial, buildload, buildstiff, buildmass, builddamping, enforce, recover, eigen, mmul, computational_cost, single_eigen, sturm_check, external_load_ft, enforce_mat, enforce_vec, central_diff_exp, courant_check
+  public :: displ, initial, buildload, buildstiff, buildmass, builddamping, enforce, recover, eigen, mmul, computational_cost, single_eigen, sturm_check, external_load_ft, enforce_mat, enforce_vec, central_diff_exp, courant_check, newmark_imp
 
 contains
 
@@ -483,7 +483,8 @@ contains
 !        integer :: irow, icol
     integer, dimension(mdim) :: edof
     real(wp), dimension(mdim) :: xe
-    real(wp), dimension(mdim, mdim) :: ce
+    real(wp), dimension(mdim, mdim) :: ce, me, ke
+    real(wp) :: young, nu, thk, dens
 
     cb = 0.0
     
@@ -498,8 +499,21 @@ contains
         edof(2*i-1) = 2 * element(e)%ix(i) - 1
         edof(2*i)   = 2 * element(e)%ix(i)
       end do
+
+      thk = mprop(element(e)%mat)%thk
+      dens = mprop(element(e)%mat)%dens
+      nu = mprop(element(e)%mat)%nu
+      young = mprop(element(e)%mat)%young
       
-      call plane42_ce(xe, kappa, ce)
+      if ( .not. proportional_damping) then ! case of constant damping
+        call plane42_ce(xe, kappa, ce)
+      else ! case of proportional damping
+        call plane42_me(xe, dens, me, thk)
+        call plane42_ke(xe, young, nu, thk, ke)
+        ce = alpha_damping*me + beta_damping*ke
+
+      end if
+
         !print *, 'ERROR in fea/buildstiff:'
         !print *, 'Stiffness matrix for plane42 elements not implemented -- you need to add your own code here'
         !stop
@@ -1006,6 +1020,7 @@ subroutine mmul(Xvec, Yvec, mtype)
     select case(mtype)
     case ( 1 ) ! stiffness matrix multiplication
       call plane42_ke(xe, young, nu, thk, m_element)
+
     case ( 2 ) ! mass matrix multiplication
       call plane42_me(xe, dens, m_element, thk)
 
@@ -1026,15 +1041,19 @@ subroutine mmul(Xvec, Yvec, mtype)
       do i = 1, 8
         m_element(i,i) = m_element(i,i) + m_element_lumped(i)/(delta_t**2)
       end do
-    end select
 
+    case ( 6 ) ! damping matrix multiplication
+      call plane42_ce(xe, kappa, m_element)
+
+    end select
+    
     ! build element X
     do i = 1, 2*nen
       X_temp(i) = Xvec(edof(i))
     end do
 
     select case(mtype)
-    case(1, 2, 4, 5)
+    case(1, 2, 4, 5, 6)
       ! do the multiplication
       Y_temp = matmul(m_element, X_temp)
     case(3)
@@ -1114,7 +1133,7 @@ subroutine central_diff_exp
 
   real(wp), dimension(bw, neqn) :: lhs ! left hand side of the equation
   real(wp) :: actual_time ! time step, total_time
-  real(wp), dimension(neqn) :: d_n, d_n_minus, d_n_plus, r_ext, r_int, md_prod, mcd_prod, rhs
+  real(wp), dimension(neqn) :: d_n, d_n_minus, d_n_plus, r_ext, r_int, md_prod, mcd_prod, rhs, d_dot, d_dotdot, initial_vector, kd_n, cd_dot
   integer :: i
   real(wp), dimension(transient_iter_max) :: d_store ! vector where to save data
   integer, dimension(transient_iter_max) :: i_store ! vector where to save iteration number
@@ -1131,6 +1150,11 @@ subroutine central_diff_exp
   r_ext = 0.0
   r_int = 0.0
   d_store = 0.0
+  d_dot = 0.0 ! initial velocity
+  d_dotdot = 0.0 ! initial acceleration
+  initial_vector = 0.0 
+  kd_n = 0.0
+  cd_dot = 0.0
 
   ! Load the gaussian quadrature points
   call gauss_quadrature
@@ -1138,21 +1162,35 @@ subroutine central_diff_exp
   ! build global matrix
   call builddamping
   
+  ! initialize vectors for the initial conditions
+  call external_load_ft(actual_time, r_ext) ! build the intial load
+  call mmul(d_n, kd_n, 1) ! product between [K]D0
+  call mmul(d_dot, cd_dot, 6) ! product between [K]D0
+  initial_vector = r_ext - kd_n - cd_dot
+
+  ! build global mass matrix
   if (.not. lumped) then
     call buildmass
     ! build the matrix on the lhs of the equation
     lhs = 1/delta_t**2*mb + cb/delta_t*0.5
+
+    call bsolve(mb, initial_vector)
+    d_dotdot = initial_vector
   else 
     call buildmass_lumped
     lhs = cb/delta_t*0.5
     do i = 1, neqn
       lhs(1, i) = lhs(1, i) + 1/delta_t**2*mb_lumped(i)
+      d_dotdot(i) = initial_vector(i) / mb_lumped(i)
     end do
   end if
 
   call enforce_mat(lhs) ! enforce boundaries on lhs
   call bfactor(lhs)
-  
+
+  ! initialize [D]-1
+  d_n = d_n - delta_t*d_dot + delta_t**2/2*d_dotdot
+
   do i = 1, transient_iter_max ! loop over the maximum transient time
     
     ! update d_n_minus and d_n
@@ -1163,7 +1201,7 @@ subroutine central_diff_exp
     call external_load_ft(actual_time, r_ext) ! build the time dependent load
 
     call internal_load_ft(d_n, r_int) ! build the internal load
-    
+
     if (.not. lumped) then ! select whether we have lumped mass or not
       call mmul(d_n, md_prod, 2) ! due the product between [M]d
       
@@ -1173,7 +1211,7 @@ subroutine central_diff_exp
       
       call mmul(d_n_minus, mcd_prod, 5) ! last term of the sum
     end if
-
+    
     ! build the right hand side
     rhs = r_ext - r_int + 2.0/delta_t**2*md_prod - mcd_prod
     
@@ -1182,7 +1220,7 @@ subroutine central_diff_exp
     call bsolve(lhs, rhs)
     
     d_n_plus = rhs ! store the previous 
-    
+
     ! d_store(i) = r_ext(dof_disp) ! store the displacement of one point
     d_store(i) = d_n_plus(dof_disp) ! store the displacement of one point
     i_store(i) = i
@@ -1197,6 +1235,108 @@ subroutine central_diff_exp
 
   print*, 'Internla load on the element ', r_int(1)
 end subroutine central_diff_exp
+
+!                                            _    
+!   _ __   _____      ___ __ ___   __ _ _ __| | __
+!  | '_ \ / _ \ \ /\ / / '_ ` _ \ / _` | '__| |/ /
+!  | | | |  __/\ V  V /| | | | | | (_| | |  |   < 
+!  |_| |_|\___| \_/\_/ |_| |_| |_|\__,_|_|  |_|\_\
+                                                
+subroutine newmark_imp
+  ! This subroutine implements the Newmark implicit method
+  use fedata
+  use plane42
+  use numeth
+
+  real(wp), dimension(bw, neqn) :: keff ! left hand side of the equation
+  real(wp) :: actual_time ! time step, total_time
+  real(wp), dimension(neqn) :: d_n, d_n_plus, r_ext, r_int, msum_1, csum_2, rhs, d_dot, d_dotdot, d_dotdot_old, initial_vector, kd_n, cd_dot, sum_1, sum_2
+  integer :: i
+  real(wp), dimension(transient_iter_max) :: d_store ! vector where to save data
+  integer, dimension(transient_iter_max) :: i_store ! vector where to save iteration number
+
+  ! initialize all the varaibles
+  keff = 0.0
+  rhs = 0.0
+  actual_time = 0.0
+  d_n = 0.0
+  d_n_plus = 0.0
+  r_ext = 0.0
+  d_store = 0.0
+  d_dot = 0.0 ! initial velocity
+  d_dotdot = 0.0 ! initial acceleration
+  d_dotdot_old = 0.0 ! old acceleration
+  initial_vector = 0.0 
+  kd_n = 0.0
+  cd_dot = 0.0
+  sum_1 = 0.0
+  sum_2 = 0.0
+
+  ! Load the gaussian quadrature points
+  call gauss_quadrature
+
+  ! build global matrix
+  call builddamping
+  call buildmass
+  call buildstiff
+  
+  ! initialize vectors for the initial conditions
+  call external_load_ft(actual_time, r_ext) ! build the intial load
+  call mmul(d_n, kd_n, 1) ! product between [K]D0
+  call mmul(d_dot, cd_dot, 6) ! product between [K]D0
+  initial_vector = r_ext - kd_n - cd_dot
+  call bsolve(mb, initial_vector)
+  d_dotdot = initial_vector ! initialize the acceleration
+  ! initialize the displacement [D]-1
+  d_n = d_n - delta_t*d_dot + delta_t**2/2*d_dotdot
+
+  ! build the matrix on the lhs of the equation
+  keff = mb/(beta*delta_t**2) + gamma*cb/(beta*delta_t) + kb
+
+  call enforce_mat(keff) ! enforce boundaries on lhs
+  call bfactor(keff) ! factorize the lhs
+
+  do i = 1, transient_iter_max ! loop over the maximum transient time
+    
+    ! update d_n
+    d_n = d_n_plus
+    
+    actual_time = actual_time + delta_t 
+    call external_load_ft(actual_time + delta_t, r_ext) ! build the time dependent load
+
+    sum_1 = d_n/(beta*delta_t**2) + d_dot/(beta*delta_t) + (0.5/beta - 1.0)*d_dotdot ! term to be multiplied by [M]
+    sum_2 = d_n*gamma/(beta*delta_t) + (gamma/beta - 1)*d_dot + delta_t*(0.5*gamma/beta - 1)*d_dotdot ! term to be multiplied by [C]
+
+    call mmul(sum_1, msum_1, 2) ! do the product [M]sum_1
+    call mmul(sum_2, csum_2, 6) ! do the product [C]sum_2
+
+    ! build the right hand side
+    rhs = r_ext + msum_1 + csum_2
+    
+    call enforce_vec(rhs) ! enforce boundaries on rhs
+
+    call bsolve(keff, rhs)
+    
+    ! update variables
+    d_n_plus = rhs ! displcement
+    d_dotdot_old = d_dotdot ! store actual acceleration
+    d_dotdot = (d_n_plus - d_n - delta_t*d_dot)/(beta*delta_t**2) - (0.5/beta - 1.0)*d_dotdot ! acceleration
+    d_dot = gamma*(d_n_plus - d_n)/(beta*delta_t) - (gamma/beta - 1.0)*d_dot - delta_t*(0.5*gamma/beta - 1.0)*d_dotdot_old
+    
+    ! d_store(i) = r_ext(dof_disp) ! store the displacement of one point
+    d_store(i) = d_n_plus(dof_disp) ! store the displacement of one point
+    i_store(i) = i
+    
+  end do
+
+  ! Write on file
+  ! open(unit = 11, file = "results.txt", position = "append")
+  open(unit = 11, file = "results.txt", status = "replace")
+  write(11, '(f15.8, a)' ) (d_store(i), ',', i = 1, transient_iter_max) 
+  close(11)
+
+  print*, 'Internla load on the element ', r_int(1)
+end subroutine newmark_imp
 
 !             _                        _   _                 _ 
 !    _____  _| |_ ___ _ __ _ __   __ _| | | | ___   __ _  __| |
@@ -1218,6 +1358,7 @@ subroutine external_load_ft(actual_time, r_ext)
     slope = max_load_magnitude/(delta_t*transient_iter_max) ! slope of the ramp
     mag = slope*actual_time ! magnitude of the force
     r_ext = mag*p ! give the magnitude to the load vector
+
   case ( 2 ) ! step
     if (actual_time < delta_t*transient_iter_max/100) then
       r_ext = max_load_magnitude*p
@@ -1229,8 +1370,8 @@ subroutine external_load_ft(actual_time, r_ext)
     r_ext = max_load_magnitude*sin(omega_load*actual_time)*p
     
   case ( 4 ) ! 
-    if (actual_time < delta_t*transient_iter_max/2.0) then
-      slope = 2.0*max_load_magnitude/(delta_t*transient_iter_max) ! slope of the ramp
+    if (actual_time < delta_t*transient_iter_max/3.0) then
+      slope = 3.0*max_load_magnitude/(delta_t*transient_iter_max) ! slope of the ramp
       mag = slope*actual_time ! magnitude of the force
       r_ext = mag*p ! give the magnitude to the load vector
     else 
