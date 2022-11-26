@@ -4,7 +4,7 @@ clear
 
 deflection = [1917 2175 2283 2358 2405]/1E5; % static deflection for 3 different mesh size
 theoretical = 0.0244;
-mesh_size = [2625 2167 1625 1292 900]/1E5; % mesh size
+mesh_size = [3625 2167 1625 1292 900]/1E5; % mesh size
 
 line_width = 1.75;
 font_size = 30;

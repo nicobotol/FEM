@@ -24,7 +24,7 @@ transient_iter_max = 100000; % steps of the iteration
 
 %%
 % plot the signals as function of steps
-fig_time_displacement = figure('Position', get(0, 'Screensize'));
+fig_disp_step = figure('Position', get(0, 'Screensize'));
 plot(NaN, NaN, 'LineWidth', line_width)
 hold on
 %plot(delta_2dot38e6, 'LineWidth', line_width)
@@ -47,8 +47,8 @@ plot(delta_3e6, 'LineWidth', line_width)
 hold off
 grid on
 set(gca, 'FontAngle', 'oblique', 'FontSize', font_size)
-saveas(fig_time_displacement, ['C:\Users\Niccolò\Documents\UNIVERSITA\' ...
-  '5° ANNO\FEM\project\images\fig_time_displacement.png'],'png');
+saveas(fig_disp_step, ['C:\Users\Niccolò\Documents\UNIVERSITA\' ...
+  '5° ANNO\FEM\project\images\fig_disp_step.png'],'png');
 
 
 %%

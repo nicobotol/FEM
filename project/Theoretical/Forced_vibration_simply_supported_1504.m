@@ -1,16 +1,20 @@
 %% Forced vibration of a simply supported beam
 % The beam is loaded with a sinusoidal input
 
-% clear 
-% close all
-% clc
+clear 
+close all
+clc
 
-line_width = 1.5;
+%% Load data from file
+results = readmatrix("results_forced_simply_supported_1504.txt");
+
+line_width = 3;
+font_size = 30;
 
 x = 1; % longitudinal position of where to evaluate the vibration
-delta_t = 5e-2;
-max_iteration = 2500;
-t = 0:delta_t:delta_t*max_iteration; % time to compute the vibration
+delta_t = 4e-3;
+max_iteration = 5000;
+t = 0:delta_t:delta_t*max_iteration-delta_t; % time to compute the vibration
 
 h = 0.05; % Width of the beam
 L = 2; % length of the beam
@@ -24,25 +28,32 @@ f0 = 1000; % magnitude of external force
 a = x; % point of application of the force
 omega = 1; % frequency of the external force (rad/s)
 
-n_shapes = 1; % number of modeshapes to be evaluated
+n_shapes = 10; % number of modeshapes to be evaluated
 n = 1:1:n_shapes; % modeshapes to be evaluated
 betaL = n*pi;
 omega_n = betaL.^2*sqrt(E*I/(rho*A*L^4)); % modal frequencies
 
-legend_names = string();
+%% Plot the comparison with the theoretical
+
 w = zeros(size(t, 2), 1)';
-figure()
+
 for i=1:n_shapes % sum the effects of the modeshapes
   mode_n = 2*f0/(rho*A*L)*1/(omega_n(i)^2 - omega^2).*sin(n(i)*pi*a/L) ...
     .*sin(n(i)*pi*x/L).*sin(omega.*t);
   w = w + mode_n;
-%   plot(t, mode_n, 'LineWidth', line_width/5);
-%   hold on
-  legend_names(i) = strcat('Mode', num2str(i));
 end
-plot(t, w, 'LineWidth', line_width);
+
+fig_forced_vibration = figure('Position', get(0, 'Screensize'));
+plot(t, -w, '-.', 'LineWidth', line_width);
+hold on
+plot(t', results, '--',  'LineWidth', line_width)
+grid on
 xlabel('Time [s]')
-title('Theoretical vibration simply supported')
-%legend_names(end + 1) = 'Tot';
-%legend(legend_names)
 ylabel('Lateral vibration [m]')
+title('Forced vibration simply supported beam')
+legend('Theoretical result', 'FEM result','NumColumns',2)
+set(gca, 'FontAngle', 'oblique', 'FontSize', font_size)
+saveas(fig_forced_vibration, ['C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM' ...
+  '\project\images\fig_forced_vibration.png'],'png');
+
+

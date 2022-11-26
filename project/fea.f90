@@ -1326,16 +1326,24 @@ subroutine newmark_imp
     ! d_store(i) = r_ext(dof_disp) ! store the displacement of one point
     d_store(i) = d_n_plus(dof_disp) ! store the displacement of one point
     i_store(i) = i
+
     
   end do
-
+  
   ! Write on file
   ! open(unit = 11, file = "results.txt", position = "append")
   open(unit = 11, file = "results.txt", status = "replace")
   write(11, '(f15.8, a)' ) (d_store(i), ',', i = 1, transient_iter_max) 
   close(11)
+  
+  
+  ! print (f8.4 f8.4 e12.4)', '' maxval(d_store)
 
-  print*, 'Internla load on the element ', r_int(1)
+  ! print on file the max displacement
+  open(unit = 12, file = "results_damping.txt", position = "append")
+  write(12, '(f8.4 f8.4 f8.3 e12.4)' ), alpha_damping, beta_damping, omega_load, maxval(abs(d_store)) 
+  close(12)
+
 end subroutine newmark_imp
 
 !             _                        _   _                 _ 
