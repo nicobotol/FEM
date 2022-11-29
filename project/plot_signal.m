@@ -1,8 +1,8 @@
-vib = readmatrix('results.txt'); % import the data
+vib = readmatrix('results_force.txt'); % import the data
 % vib = textread('lb_dhn.txt'); % signal
 % vib = vib(:,1);
 %%
-delta_t = 1E-6;
+delta_t = 5E-2; 
 transient_iter_max = size(vib, 1);
 time = 0:delta_t:delta_t*transient_iter_max - delta_t;
 
@@ -11,6 +11,3 @@ plot(time', vib)
 xlabel('Time [s]')
 ylabel('Displacement [m]')
 
-
-% figure()
-% plot(vib)

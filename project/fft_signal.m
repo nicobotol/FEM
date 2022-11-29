@@ -7,7 +7,7 @@ s = readmatrix('results.txt'); % signal
 % s = s(:,1);
 % N = size(s, 1); % number of points of the signal
 % s = s(N/2:end);
-Ts = 2E-6; % sample period
+Ts = 5E-3; % sample period
 % Ts = 9E-5; % sample period
 fs = 1/Ts; % sample frequency
 

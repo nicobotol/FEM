@@ -984,7 +984,7 @@ subroutine mmul(Xvec, Yvec, mtype)
   integer, intent(in) :: mtype
   real(wp) ::  young, nu, thk, dens
   real(wp), dimension(8) :: xe
-  real(wp), dimension(8, 8) :: me, ce, m_element 
+  real(wp), dimension(8, 8) :: me, ce, ke, m_element 
   real(wp), dimension(8) :: m_element_lumped 
   integer :: e, i ! iterators
   integer :: nen
@@ -1042,8 +1042,14 @@ subroutine mmul(Xvec, Yvec, mtype)
         m_element(i,i) = m_element(i,i) + m_element_lumped(i)/(delta_t**2)
       end do
 
-    case ( 6 ) ! damping matrix multiplication
-      call plane42_ce(xe, kappa, m_element)
+    case( 6 ) ! element damping (for initial conditions)
+      if (.not. proportional_damping) then
+        call plane42_ce(xe, kappa, m_element)
+      else
+        call plane42_me(xe, dens, me, thk)
+        call plane42_ke(xe, young, nu, thk, ke)
+        m_element = alpha_damping*me + beta_damping*ke ! = ce, element damping matrix
+      end if
 
     end select
     
@@ -1252,7 +1258,7 @@ subroutine newmark_imp
   real(wp) :: actual_time ! time step, total_time
   real(wp), dimension(neqn) :: d_n, d_n_plus, r_ext, r_int, msum_1, csum_2, rhs, d_dot, d_dotdot, d_dotdot_old, initial_vector, kd_n, cd_dot, sum_1, sum_2
   integer :: i
-  real(wp), dimension(transient_iter_max) :: d_store ! vector where to save data
+  real(wp), dimension(transient_iter_max) :: d_store, f_store ! vector where to save data
   integer, dimension(transient_iter_max) :: i_store ! vector where to save iteration number
 
   ! initialize all the varaibles
@@ -1323,8 +1329,10 @@ subroutine newmark_imp
     d_dotdot = (d_n_plus - d_n - delta_t*d_dot)/(beta*delta_t**2) - (0.5/beta - 1.0)*d_dotdot ! acceleration
     d_dot = gamma*(d_n_plus - d_n)/(beta*delta_t) - (gamma/beta - 1.0)*d_dot - delta_t*(0.5*gamma/beta - 1.0)*d_dotdot_old
     
-    ! d_store(i) = r_ext(dof_disp) ! store the displacement of one point
-    d_store(i) = d_n_plus(dof_disp) ! store the displacement of one point
+    d_store(i) = d_n(dof_disp) ! store the displacement of one point
+    f_store(i) = r_ext(dof_disp)
+    ! d_store(i) = d_dotdot(dof_disp) ! store the displacement of one point
+    ! d_store(i) = d_n_plus(dof_disp) ! store the displacement of one point
     i_store(i) = i
 
     
@@ -1334,6 +1342,12 @@ subroutine newmark_imp
   ! open(unit = 11, file = "results.txt", position = "append")
   open(unit = 11, file = "results.txt", status = "replace")
   write(11, '(f15.8, a)' ) (d_store(i), ',', i = 1, transient_iter_max) 
+  close(11)
+
+   ! Write on file
+  ! open(unit = 11, file = "results.txt", position = "append")
+  open(unit = 11, file = "results_force.txt", status = "replace")
+  write(11, '(f15.8, a)' ) (f_store(i), ',', i = 1, transient_iter_max) 
   close(11)
   
   
