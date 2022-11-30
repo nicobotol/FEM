@@ -198,14 +198,14 @@ module fedata
         !! Matrix containing the eigenvectors
     integer :: neig = 6
         !! number of eigenvector we are looking for
-    integer :: pmax = 10
+    integer :: pmax = 1000
         !! max number of iterations
     real(wp) :: epsilon = 1E-12
 
     ! TRANSIENT ANALYSIS
     real(wp) :: kappa = 0.0 ! viscous damping coefficient
     real(wp) :: delta_t = 5E-4 ! time step
-    integer :: transient_iter_max = 10000 ! maximum number of iteration for the transien analysis
+    integer :: transient_iter_max = 5000 ! maximum number of iteration for the transien analysis
     integer :: load_type = 2 ! type of external load
       ! load_type = 1 -> ramp
       ! load_type = 2 -> step
@@ -218,7 +218,7 @@ module fedata
       ! material_type = 2 -> non linear elastic
     real(wp) :: omega_load = 187.7 ! frequency of the harmonic input
     integer :: dof_disp = 2*380 ! degree of freedom to be displayed
-    logical, parameter :: lumped = .true. ! use lumped mass
+    logical, parameter :: lumped = .false. ! use lumped mass
     real(wp),  dimension(:), allocatable :: mb_lumped
     real(wp) :: beta = 1.0/4.0 ! coefficient for newmark method
     real(wp) :: gamma = 1.0/2.0 ! coefficient for newmark method
@@ -227,7 +227,7 @@ module fedata
       ! method = 2 -> newmark
       ! method = 3 -> no dynamic analysis 
     logical, parameter :: proportional_damping = .true.
-    real(wp) :: alpha_damping = 0.5
-    real(wp) :: beta_damping = 4E-4
+    real(wp) :: alpha_damping = 0.25
+    real(wp) :: beta_damping = 2E-4
 
 end module fedata

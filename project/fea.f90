@@ -946,7 +946,7 @@ subroutine eigen
 
   ! print '(f10.8)', omega_vec
   
-  call plotmatlabeig('Mode Shape', omega_vec(5), 1.0*ematrix(:,5), [10.0d0, 0.10d0])
+  call plotmatlabeig('Mode Shape', omega_vec(2), 0.1*ematrix(:,2), [10.0d0, 0.10d0])
 
   ! if not banded form imlemented then bandwith is 0
   if ( .not. banded) then
@@ -1344,19 +1344,19 @@ subroutine newmark_imp
   write(11, '(f15.8, a)' ) (d_store(i), ',', i = 1, transient_iter_max) 
   close(11)
 
-   ! Write on file
-  ! open(unit = 11, file = "results.txt", position = "append")
-  open(unit = 11, file = "results_force.txt", status = "replace")
-  write(11, '(f15.8, a)' ) (f_store(i), ',', i = 1, transient_iter_max) 
-  close(11)
+  !  ! Write on file
+  ! ! open(unit = 11, file = "results.txt", position = "append")
+  ! open(unit = 11, file = "results_force.txt", status = "replace")
+  ! write(11, '(f15.8, a)' ) (f_store(i), ',', i = 1, transient_iter_max) 
+  ! close(11)
   
   
   ! print (f8.4 f8.4 e12.4)', '' maxval(d_store)
 
-  ! print on file the max displacement
-  open(unit = 12, file = "results_damping.txt", position = "append")
-  write(12, '(f8.4 f8.4 f8.3 e12.4)' ), alpha_damping, beta_damping, omega_load, maxval(abs(d_store)) 
-  close(12)
+  ! !  print on file the max displacement
+  ! open(unit = 12, file = "results_damping.txt", position = "append")
+  ! write(12, '(f8.4 f8.4 f8.3 e12.4)' ), alpha_damping, beta_damping, omega_load, maxval(abs(d_store)) 
+  ! close(12)
 
 end subroutine newmark_imp
 
