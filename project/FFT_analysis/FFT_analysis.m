@@ -5,7 +5,7 @@ clc
 %% Theoretical solution
 
 E = 2.11E11;
-rho = 7.6E3;
+rho = 7.8E3;
 thk = 0.05;
 h = 0.05;
 L = 2;
@@ -71,9 +71,9 @@ S_mag_long = abs(S_oneSide_long)/(N/2);
 color_eigen = [0.4940 0.1840 0.5560];
 color_th = [0.4660 0.6740 0.1880];
 fig_FFT = figure('Position', get(0, 'Screensize'));
-plot(NaN, NaN, '--','Color',color_eigen)
+plot(NaN, NaN, '--','Color',color_eigen, 'LineWidth', line_width*1.5)
 hold on
-plot(NaN, NaN, '--','Color',color_th)
+plot(NaN, NaN, '--','Color',color_th, 'LineWidth', line_width*1.5)
 yyaxis left
 plot(f(1:max_sample), S_mag_lat(1:max_sample),'Color',[0 0.4470 0.7410], ...
   'LineWidth', line_width)
@@ -100,11 +100,11 @@ xline(eigen(6), '--', num2str(eigen(6)),'LabelHorizontalAlignment', ...
 xline(theoretical_freq(6), '--', num2str(theoretical_freq(6)), ...
   'LabelHorizontalAlignment', 'left', 'LabelVerticalAlignment', 'middle', ...
   'Color', color_th, 'LineWidth', line_width*0.75,'FontSize', font_size)
-
+legend('Eigen', 'Theo', 'Location', 'northeast') %'southoutside')
 set(gca, 'FontAngle', 'oblique', 'FontSize', font_size)
 saveas(fig_FFT, ['C:\Users\Niccolò\Documents\UNIVERSITA\5° ANNO\FEM' ...
   '\project\images\fig_FFT.png'],'png');
-legend('Eigen', 'Theo', 'Location', 'northeast') %'southoutside')
+
 
 % [legend_handle, icons] = legend('Eigenvalue analysis', 'Theoretical'); 
 % set(legend_handle, 'Box', 'off')
