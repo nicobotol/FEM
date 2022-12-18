@@ -65,7 +65,7 @@ contains
     allocate (g_grad(ne)) ! gradient for topology optimization
     allocate (f_grad(ne)) ! gradient for topology optimization
     allocate (dens_old(ne)) ! gradient for topology optimization
-    allocate (f_vector(ne)) ! vector for storing the compliance
+    allocate (f_vector(iopt_max)) ! vector for storing the compliance
     
   end subroutine initial
 !
@@ -611,7 +611,7 @@ subroutine recover
   integer :: edof(mdim)
   real(wp), dimension(mdim) :: xe, de
   real(wp), dimension(mdim, mdim) :: ke
-  real(wp) :: young, area, e_area, thk
+  real(wp) :: young, area, e_area, thk, dens
 ! Hint for continuum elements:
 !        real(wp):: nu, dens, thk
   real(wp), dimension(3) :: estrain, estress
@@ -650,6 +650,7 @@ subroutine recover
       young = mprop(element(e)%mat)%young
       nu = mprop(element(e)%mat)%nu
       thk = mprop(element(e)%mat)%thk
+      dens = mprop(element(e)%mat)%dens
       call plane42_ss(xe, de, young, nu, estress, estrain, estress_vm, estress_1, estress_2, psi)
       stress(e, 1:3) = estress
       strain(e, 1:3) = estrain
@@ -666,9 +667,9 @@ subroutine recover
 
       call plane42_ke(xe, young, nu, thk, ke) ! build element stifness matrix
       
-      f_grad(e) = -p_topopt*rho**(p_topopt - 1)*transpose(de)*ke*de
+      f_grad(e) = -p_topopt*dens**(p_topopt - 1)*dot_product(de, matmul(ke,de))
 
-      f_tot = f_tot + transpose(de)*rho**p_topopt*ke*de
+      f_tot = f_tot + dens**p_topopt*dot_product(de, matmul(ke, de))
     end select
   end do
 
@@ -1566,10 +1567,18 @@ end subroutine courant_check
 ! this subroutine runs the topology optimization 
 subroutine topopt
   use fedata
+  use plane42
+  use numeth
 
-  real(wp) :: dens_0 ! initial guess for the density
-  real(wp), dimension(ne) :: dens_0_vect, dens_old, dens_new ! vector of densities
+  real(wp) :: dens_0, f, ciao ! initial guess for the density
+  real(wp), dimension(ne) :: dens_0_vect, dens_new ! vector of densities
   integer :: i ! counter
+
+  ! Load the gaussian quadrature points
+  call gauss_quadrature
+
+  ! Load the gaussian quadrature points fot the evaluation of the bmat
+  call gauss_quadrature_bmat
 
   ! initialize the density for all the elements
   call recover 
@@ -1579,14 +1588,17 @@ subroutine topopt
   call dens_write(dens_0_vect)
 
   call buildload
-
-  do i=1:ipot_max
+  
+  f_vector = 0.0
+  f = 0.0
+  
+  do i = 1,iopt_max
     ! save the old density
-    call dens_write(dens_old)
-
+    call dens_read(dens_old)
+    call buildload
     call buildstiff
     call enforce
-    call bfactor
+    call bfactor(kb)
     call bsolve(kb, p)
     d = p
     call recover
@@ -1594,16 +1606,15 @@ subroutine topopt
     call recover
     ! store the compliance
     f_vector(i) = f
-    
     ! save the new density
-    call dens_write(dens_new)
-    
+    call dens_read(dens_new)
     ! check the convergence
     if (norm2(dens_old - dens_new) < norm2(dens_new)*epsilon_topopt) then 
       stop
     end if
 
   end do
+  print*, dens_new
 end subroutine topopt
 
 !   _     _               _   
@@ -1617,9 +1628,10 @@ subroutine bisect
   use fedata
   use plane42
 
-  real(wp), dimension(ne) :: dens_old, dens ! vector of densities
+  real(wp), dimension(ne) :: dens ! vector of densities
   real(wp) :: lambda_mid ! midpoint for the bisection method
   real(wp) :: Be 
+  integer :: e
   lambda_mid = 0.0
   ! save the actual density
   call dens_read(dens_old)
@@ -1628,13 +1640,13 @@ subroutine bisect
     lambda_mid = (lambda_lower + lambda_upper)/2.0
     dens = 0.0 ! initialize the density vector
     
-    do e = 1:ne
+    do e = 1,ne
       Be = -f_grad(e) / (lambda_mid * g_grad(e))
 
       ! update the density
-      if (rho_old(e)*Be**eta_topopt <= dens_min) then
-        call dens(e) = dens_min 
-      else if (dens_min < dens_old(e)*Be*eta_topopt .and. dens_old(e)*Be**eta_topopt < 1.0) then
+      if (dens_old(e)*Be**eta_topopt <= dens_min) then
+        dens(e) = dens_min 
+      else if (dens_min < dens_old(e)*Be**eta_topopt .and. dens_old(e)*Be**eta_topopt < 1.0) then
         dens(e) = dens_old(e)*Be**eta_topopt 
       else if (dens_old(e)*Be**eta_topopt >= 1.0) then
         dens(e) = 1.0
@@ -1643,7 +1655,7 @@ subroutine bisect
     end do
 
     ! update the boundaries
-    if (transpose(dens) * g_grad - V_star > 0.0) then
+    if (dot_product(dens, g_grad) - V_star > 0.0) then
       lambda_lower = lambda_mid
     else
       lambda_upper = lambda_mid

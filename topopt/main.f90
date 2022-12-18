@@ -17,18 +17,20 @@ program main
   ! Initialize problem
   call initial
 
-  call displ
+  ! call displ
 
-  call eigen
+  ! call eigen
 
-  select case ( method )
-  case ( 1 ) ! central different method
-    call central_diff_exp
-  case ( 2 ) ! newmark method
-    call newmark_imp
-  case (3)
+  ! select case ( method )
+  ! case ( 1 ) ! central different method
+  !   call central_diff_exp
+  ! case ( 2 ) ! newmark method
+  !   call newmark_imp
+  ! case (3)
     
-  end select
+  ! end select
+
+  call topopt
 
   call stopwatch('stop')
 

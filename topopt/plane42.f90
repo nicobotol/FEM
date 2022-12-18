@@ -986,11 +986,11 @@ end subroutine element_area
 !                      |_____|                    
 ! this subroutine saves in a vector the density of all the element
 subroutine dens_read(rho_out)
-  real(wp), dimension(ne), intent(out) :: rho
+  real(wp), dimension(ne), intent(out) :: rho_out
   integer :: e
   e = 0
   ! save the new density
-  do e = 1:ne
+  do e = 1,ne
     rho_out(e) = mprop(element(e)%mat)%dens 
   end do 
 end subroutine dens_read
@@ -1003,10 +1003,10 @@ end subroutine dens_read
 !                      |_____|                     
 ! this subroutine writes in all the elements the density
 subroutine dens_write(rho_in)
-  real(wp), dimension(ne), intent(out) :: rho
+  real(wp), dimension(ne), intent(in) :: rho_in
   integer :: e
   e = 0
-  do e = 1:ne
+  do e = 1,ne
     mprop(element(e)%mat)%dens = rho_in(e)
   end do
 end subroutine dens_write

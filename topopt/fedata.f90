@@ -238,7 +238,7 @@ module fedata
     real(wp) :: p_topopt = 1.4 ! p coefficient for topology optimization
     real(wp) :: f_tot = 0.0 ! total compliance
     real(wp) :: V_star = 10 ! maximum volume allowed
-    real(wp) :: iopt_max = 1000 ! max number of iterations for the topology optimization
+    integer :: iopt_max = 1000 ! max number of iterations for the topology optimization
     real(wp) :: epsilon_topopt = 1e-12 ! convergence criterion
     real(wp) :: lambda_lower = 1e-10 ! guess lower value 
     real(wp) :: lambda_upper = 1e10 ! guess lower value 
