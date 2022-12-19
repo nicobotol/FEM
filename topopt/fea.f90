@@ -1662,7 +1662,7 @@ subroutine topopt
   use plane42
   use numeth
 
-  real(wp) :: dens_0, f ! initial guess for the density
+  real(wp) :: dens_0 ! initial guess for the density
   real(wp), dimension(ne) :: dens_0_vect, dens_new ! vector of densities
   integer :: i ! counter
 
@@ -1673,7 +1673,7 @@ subroutine topopt
   call gauss_quadrature_bmat
 
   ! initialize the density for all the elements
-  call recover ! recover to find g_grad
+  call recover_g_grad ! recover to find g_grad
   dens_0 = V_star / sum(g_grad) ! initial density
   dens_0_vect = dens_0 ! write the initial density in the vector
   call dens_write(dens_0_vect) ! write the initial density in each element
@@ -1682,22 +1682,21 @@ subroutine topopt
   
   ! initialize the compliance
   f_vector = 0.0
-  f = 0.0
   
   do i = 1,iopt_max
     call dens_read(dens_old) ! save the old density
     call buildload ! build the load 
+    print*, p
     call buildstiff ! build the stiffness matrix
     call enforce  ! enforce boundary conditions
     call bfactor(kb) ! factorize the stiffness matrix
     call bsolve(kb, p) ! solve the system of equation
     d = p ! store the displacement 
-    call recover ! recover the displacement to find f_grad
+    call recover_f_grad ! recover the displacement to find f_grad
     call bisect
-    call recover
+    call recover_f_tot
     
-    f_vector(i) = f ! store the compliance
-    print'(20f4.2)', f
+    f_vector(i) = f_tot ! store the compliance
     
     call dens_read(dens_new) ! read the new density
 
