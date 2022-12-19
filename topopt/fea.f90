@@ -5,7 +5,7 @@ module fea
   implicit none
   save
   private
-  public :: displ, initial, buildload, buildstiff, buildmass, builddamping, enforce, recover, eigen, mmul, computational_cost, single_eigen, sturm_check, external_load_ft, enforce_mat, enforce_vec, central_diff_exp, courant_check, newmark_imp, topopt
+  public :: displ, initial, buildload, buildstiff, buildmass, builddamping, enforce, recover, recover_g_grad, recover_f_grad, recover_f_tot, eigen, mmul, computational_cost, single_eigen, sturm_check, external_load_ft, enforce_mat, enforce_vec, central_diff_exp, courant_check, newmark_imp, topopt
 
 contains
 
@@ -611,7 +611,7 @@ subroutine recover
   integer :: edof(mdim)
   real(wp), dimension(mdim) :: xe, de
   real(wp), dimension(mdim, mdim) :: ke
-  real(wp) :: young, area, e_area, thk, dens
+  real(wp) :: young, area, thk
 ! Hint for continuum elements:
 !        real(wp):: nu, dens, thk
   real(wp), dimension(3) :: estrain, estress
@@ -650,7 +650,6 @@ subroutine recover
       young = mprop(element(e)%mat)%young
       nu = mprop(element(e)%mat)%nu
       thk = mprop(element(e)%mat)%thk
-      dens = mprop(element(e)%mat)%dens
       call plane42_ss(xe, de, young, nu, estress, estrain, estress_vm, estress_1, estress_2, psi)
       stress(e, 1:3) = estress
       strain(e, 1:3) = estrain
@@ -660,20 +659,113 @@ subroutine recover
       principal_stresses(e, 2) = estress_2
       principal_stresses(e, 3) = psi
 
-      ! compute the element of the element
-      call element_area(xe, e_area)
-
-      g_grad(e) = e_area*thk
-
-      call plane42_ke(xe, young, nu, thk, ke) ! build element stifness matrix
-      
-      f_grad(e) = -p_topopt*dens**(p_topopt - 1)*dot_product(de, matmul(ke,de))
-
-      f_tot = f_tot + dens**p_topopt*dot_product(de, matmul(ke, de))
-    end select
+      end select
   end do
 
 end subroutine recover
+
+! This subrputine recovers the gradient of g
+subroutine recover_g_grad
+  use fedata
+  use plane42
+
+  integer :: edof(mdim)
+  integer :: e, nen, i 
+  real(wp), dimension(mdim) :: xe
+  real(wp) :: e_area, thk
+
+  do e = 1, ne
+    ! Find coordinates etc...
+    nen = int(element(e)%numnode)
+    do i = 1,nen
+      xe(2*i-1) = x(element(e)%ix(i), 1)
+      xe(2*i)   = x(element(e)%ix(i), 2)
+      edof(2*i-1) = 2 * element(e)%ix(i) - 1
+      edof(2*i)   = 2 * element(e)%ix(i)
+    end do
+
+    ! material properties
+    thk = mprop(element(e)%mat)%thk
+
+    ! compute the element of the element
+    call element_area(xe, e_area)
+
+    g_grad(e) = e_area*thk
+
+  end do
+end subroutine recover_g_grad
+
+! This subrputine recovers the gradient of f
+subroutine recover_f_grad
+  use fedata
+  use plane42
+
+  integer :: edof(mdim)
+  integer :: e, nen, i 
+  real(wp), dimension(mdim) :: xe, de
+  real(wp), dimension(mdim, mdim) :: ke
+  real(wp) :: thk, nu, young, dens
+
+  do e = 1, ne
+    ! Find coordinates etc...
+    nen = int(element(e)%numnode)
+    do i = 1,nen
+      xe(2*i-1) = x(element(e)%ix(i), 1)
+      xe(2*i)   = x(element(e)%ix(i), 2)
+      edof(2*i-1) = 2 * element(e)%ix(i) - 1
+      edof(2*i)   = 2 * element(e)%ix(i)
+      de(2*i-1) = d(edof(2*i-1))
+      de(2*i)   = d(edof(2*i))
+    end do
+
+    ! material properties
+    thk = mprop(element(e)%mat)%thk
+    young = mprop(element(e)%mat)%young
+    nu = mprop(element(e)%mat)%nu
+    dens = mprop(element(e)%mat)%dens
+
+    call plane42_ke(xe, young, nu, thk, ke) ! build element stifness matrix
+
+    f_grad(e) = -p_topopt*dens**(p_topopt - 1)*dot_product(de, matmul(ke,de))
+
+  end do
+end subroutine recover_f_grad
+
+! This subrputine recovers the value of the total f
+subroutine recover_f_tot
+  use fedata
+  use plane42
+
+  integer :: edof(mdim)
+  integer :: e, nen, i  
+  real(wp), dimension(mdim) :: xe, de
+  real(wp), dimension(mdim, mdim) :: ke
+  real(wp) :: thk, nu, young, dens
+
+  do e = 1, ne
+    ! Find coordinates etc...
+    nen = int(element(e)%numnode)
+    do i = 1,nen
+      xe(2*i-1) = x(element(e)%ix(i), 1)
+      xe(2*i)   = x(element(e)%ix(i), 2)
+      edof(2*i-1) = 2 * element(e)%ix(i) - 1
+      edof(2*i)   = 2 * element(e)%ix(i)
+      de(2*i-1) = d(edof(2*i-1))
+      de(2*i)   = d(edof(2*i))
+    end do
+
+    ! material properties
+    thk = mprop(element(e)%mat)%thk
+    young = mprop(element(e)%mat)%young
+    nu = mprop(element(e)%mat)%nu
+    dens = mprop(element(e)%mat)%dens
+
+    call plane42_ke(xe, young, nu, thk, ke) ! build element stifness matrix
+
+    f_tot = f_tot + dens**p_topopt*dot_product(de, matmul(ke, de))
+
+  end do
+end subroutine recover_f_tot
 
 
 !                 _   
@@ -1267,7 +1359,7 @@ subroutine newmark_imp
 
   real(wp), dimension(bw, neqn) :: keff ! left hand side of the equation
   real(wp) :: actual_time ! time step, total_time
-  real(wp), dimension(neqn) :: d_n, d_n_plus, r_ext, r_int, msum_1, csum_2, rhs, d_dot, d_dotdot, d_dotdot_old, initial_vector, kd_n, cd_dot, sum_1, sum_2
+  real(wp), dimension(neqn) :: d_n, d_n_plus, r_ext, msum_1, csum_2, rhs, d_dot, d_dotdot, d_dotdot_old, initial_vector, kd_n, cd_dot, sum_1, sum_2
   integer :: i
   real(wp), dimension(transient_iter_max) :: d_store, f_store ! vector where to save data
   integer, dimension(transient_iter_max) :: i_store ! vector where to save iteration number
@@ -1570,7 +1662,7 @@ subroutine topopt
   use plane42
   use numeth
 
-  real(wp) :: dens_0, f, ciao ! initial guess for the density
+  real(wp) :: dens_0, f ! initial guess for the density
   real(wp), dimension(ne) :: dens_0_vect, dens_new ! vector of densities
   integer :: i ! counter
 
@@ -1581,33 +1673,34 @@ subroutine topopt
   call gauss_quadrature_bmat
 
   ! initialize the density for all the elements
-  call recover 
-  dens_0 = V_star / sum(g_grad)
-  dens_0_vect = dens_0
-
-  call dens_write(dens_0_vect)
+  call recover ! recover to find g_grad
+  dens_0 = V_star / sum(g_grad) ! initial density
+  dens_0_vect = dens_0 ! write the initial density in the vector
+  call dens_write(dens_0_vect) ! write the initial density in each element
 
   call buildload
   
+  ! initialize the compliance
   f_vector = 0.0
   f = 0.0
   
   do i = 1,iopt_max
-    ! save the old density
-    call dens_read(dens_old)
-    call buildload
-    call buildstiff
-    call enforce
-    call bfactor(kb)
-    call bsolve(kb, p)
-    d = p
-    call recover
+    call dens_read(dens_old) ! save the old density
+    call buildload ! build the load 
+    call buildstiff ! build the stiffness matrix
+    call enforce  ! enforce boundary conditions
+    call bfactor(kb) ! factorize the stiffness matrix
+    call bsolve(kb, p) ! solve the system of equation
+    d = p ! store the displacement 
+    call recover ! recover the displacement to find f_grad
     call bisect
     call recover
-    ! store the compliance
-    f_vector(i) = f
-    ! save the new density
-    call dens_read(dens_new)
+    
+    f_vector(i) = f ! store the compliance
+    print'(20f4.2)', f
+    
+    call dens_read(dens_new) ! read the new density
+
     ! check the convergence
     if (norm2(dens_old - dens_new) < norm2(dens_new)*epsilon_topopt) then 
       stop
@@ -1660,11 +1753,11 @@ subroutine bisect
     else
       lambda_upper = lambda_mid
     end if
-
-    ! udate the densities on all the elements
-    call dens_write(dens)
-
+  
   end do
+
+  ! udate the densities on all the elements
+  call dens_write(dens)
 end subroutine bisect
 
 end module fea
