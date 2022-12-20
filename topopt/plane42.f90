@@ -28,7 +28,7 @@ module plane42
   save
   
   private
-  public :: plane42_ke, plane42_re, plane42_ss, shape, gauss_quadrature, gauss_quadrature_bmat, plane42_me, plane42_ce, element_edges, element_area, plane42_me_lumped, shape_lumped, dens_read, dens_write
+  public :: plane42_ke, plane42_ke_topopt, plane42_re, plane42_ss, shape, gauss_quadrature, gauss_quadrature_bmat, plane42_me, plane42_ce, element_edges, element_area, plane42_me_lumped, shape_lumped, dens_read, dens_write
 
 contains
 
@@ -213,11 +213,6 @@ contains
       ke = ke*thk
 
     else ! isoparametric formulation
-      ! ! build the vectors with gaussian points and weights
-      ! gauss_location(1) = -1.0/3.0**0.5
-      ! gauss_location(2) = 1.0/3.0**0.5
-      ! gauss_weight(1) = 1.0
-      ! gauss_weight(2) = 1.0
 
       ke = 0.0 ! initilize ke
       do i = 1, ng
@@ -241,6 +236,201 @@ contains
     end if
   end subroutine plane42_ke
   
+  subroutine plane42_ke_topopt(xe, young, nu, thk, dens, ke)
+    use fedata
+
+    !! This subroutine constructs the stiffness matrix for
+    !! a rectangular 4-noded quad element.
+
+    real(wp), intent(in) :: young
+        !! Young's Modulus for this element
+    real(wp), intent(in) :: nu
+        !! Poisson's Ratio for this element
+    real(wp), intent(in) :: thk
+        !! Thickness of this element
+    real(wp), intent(in) :: dens
+        !! Density of this element
+    real(wp), dimension(:), intent(in) :: xe
+        !! Nodal coordinates of this element in undeformed configuration
+        !!
+        !! * `xe(1:2)` = \((x,y)\)-coordinates of element node 1
+        !! * `xe(3:4)` = \((x,y)\)-coordinates of element node 1
+        !! * `xe(5:6)` = \((x,y)\)-coordinates of element node 2
+        !! * `xe(7:8)` = \((x,y)\)-coordinates of element node 2
+        !!
+        !! See also [[plane42]]
+    real(wp), dimension(:,:), intent(out) :: ke
+        !! Stiffness matrix
+
+    ! real(wp) :: fact, aa, bb
+    real(wp) :: cmat(3,3), aa, bb
+    real(wp) :: t1, t2, t3, t4, t5, t6, t9, t11, t13, t15, &
+    t16, t17, t18, t19, t22, t25, t29, t33, &
+    t34, t38, t42, t43, t47, t51, t55, t56, &
+    t57, t58, t59, t62, t66, t70, t74, t78, &
+    t82, t86, t90, t94, t98, t102, t106, t110
+    real(wp) :: d11, d12, d13, d22, d23, d33
+    ! locations and weight for gauss quadrature
+    ! integer :: ng = 2 ! gaussian quadrature points
+    ! real(wp), dimension(ng) :: gauss_location
+    ! real(wp), dimension(ng) :: gauss_weight 
+    real(wp) :: eta ! point where to evaluate the gaussian quadrature
+    real(wp) :: xi ! point where to evaluate the gaussian quadrature
+    real(wp) :: det_J
+    real(wp), dimension(3,8) :: B
+    real(wp), dimension(2,8) :: N
+    integer :: i, ii ! iterators
+    real(wp), dimension(2,2) :: J
+    real(wp), dimension(3,8) :: temp_prod1
+    real(wp), dimension(8,8) :: temp_prod2
+
+    call build_matrix_cmat(young, nu, cmat)
+    
+    if (.not. isoparametric) then
+      
+      aa = (xe(3)-xe(1))/2
+      bb = (xe(8)-xe(2))/2
+      
+      d11 = cmat(1,1)
+      d12 = cmat(1,2)
+      d13 = cmat(1,3)
+      d22 = cmat(2,2)
+      d23 = cmat(2,3)
+      d33 = cmat(3,3)
+      
+      t1 = bb**2
+      t2 = t1*d11
+      t3 = 2*t2
+      t4 = aa**2
+      t5 = t4*d33
+      t6 = 2*t5
+      t9 = 3*d13*aa*bb
+      t11 = 1/aa
+      t13 = 1/bb
+      t15 = (t3+t6+t9)*t11*t13/6
+      t16 = d13*t1
+      t17 = 4*t16
+      t18 = t4*d23
+      t19 = 4*t18
+      t22 = 3*d12*aa*bb
+      t25 = 3*aa*d33*bb
+      t29 = (t17+t19+t22+t25)*t11*t13/12
+      t33 = (-t3+t5)*t11*t13/6
+      t34 = 2*t18
+      t38 = (-t17+t34+t22-t25)*t11*t13/12
+      t42 = (t2+t5+t9)*t11*t13/6
+      t43 = 2*t16
+      t47 = (t43+t34+t22+t25)*t11*t13/12
+      t51 = (-t2+t6)*t11*t13/6
+      t55 = (-t43+t19+t22-t25)*t11*t13/12
+      t56 = d33*t1
+      t57 = 2*t56
+      t58 = t4*d22
+      t59 = 2*t58
+      t62 = 3*aa*d23*bb
+      t66 = (t57+t59+t62)*t11*t13/6
+      t70 = (-t17+t34-t22+t25)*t11*t13/12
+      t74 = (-t57+t58)*t11*t13/6
+      t78 = (t56+t58+t62)*t11*t13/6
+      t82 = (-t43+t19-t22+t25)*t11*t13/12
+      t86 = (-t56+t59)*t11*t13/6
+      t90 = (t3+t6-t9)*t11*t13/6
+      t94 = (t17+t19-t22-t25)*t11*t13/12
+      t98 = (t2+t5-t9)*t11*t13/6
+      t102 = (t43+t34-t22-t25)*t11*t13/12
+      t106 = (t57+t59-t62)*t11*t13/6
+      t110 = (t56+t58-t62)*t11*t13/6
+      ke(1,1) = t15
+      ke(1,2) = t29
+      ke(1,3) = t33
+      ke(1,4) = t38
+      ke(1,5) = -t42
+      ke(1,6) = -t47
+      ke(1,7) = -t51
+      ke(1,8) = -t55
+      ke(2,1) = t29
+      ke(2,2) = t66
+      ke(2,3) = t70
+      ke(2,4) = t74
+      ke(2,5) = -t47
+      ke(2,6) = -t78
+      ke(2,7) = -t82
+      ke(2,8) = -t86
+      ke(3,1) = t33
+      ke(3,2) = t70
+      ke(3,3) = t90
+      ke(3,4) = t94
+      ke(3,5) = -t51
+      ke(3,6) = -t82
+      ke(3,7) = -t98
+      ke(3,8) = -t102
+      ke(4,1) = t38
+      ke(4,2) = t74
+      ke(4,3) = t94
+      ke(4,4) = t106
+      ke(4,5) = -t55
+      ke(4,6) = -t86
+      ke(4,7) = -t102
+      ke(4,8) = -t110
+      ke(5,1) = -t42
+      ke(5,2) = -t47
+      ke(5,3) = -t51
+      ke(5,4) = -t55
+      ke(5,5) = t15
+      ke(5,6) = t29
+      ke(5,7) = t33
+      ke(5,8) = t38
+      ke(6,1) = -t47
+      ke(6,2) = -t78
+      ke(6,3) = -t82
+      ke(6,4) = -t86
+      ke(6,5) = t29
+      ke(6,6) = t66
+      ke(6,7) = t70
+      ke(6,8) = t74
+      ke(7,1) = -t51
+      ke(7,2) = -t82
+      ke(7,3) = -t98
+      ke(7,4) = -t102
+      ke(7,5) = t33
+      ke(7,6) = t70
+      ke(7,7) = t90
+      ke(7,8) = t94
+      ke(8,1) = -t55
+      ke(8,2) = -t86
+      ke(8,3) = -t102
+      ke(8,4) = -t110
+      ke(8,5) = t38
+      ke(8,6) = t74
+      ke(8,7) = t94
+      ke(8,8) = t106
+      
+      ke = ke*thk
+
+    else ! isoparametric formulation
+
+      ke = 0.0 ! initilize ke
+      do i = 1, ng
+        do ii = 1, ng
+          
+          xi = gauss_location(i)
+          eta = gauss_location(ii)
+
+          call shape(eta, xi, xe, N, B, J, det_J)
+
+          ! build local stiffness matrix
+          temp_prod1 = matmul(cmat, B)
+          temp_prod2 = matmul(transpose(B), temp_prod1)
+          ke = ke + gauss_weight(i)*gauss_weight(ii)*thk*temp_prod2*det_J*dens**p_topopt
+
+          ! build local stiffness matrix (in case of modal analysis)
+      
+
+        end do
+      end do
+    end if
+  end subroutine plane42_ke_topopt
+
   subroutine plane42_me(xe, dens, me, thk)
     
 

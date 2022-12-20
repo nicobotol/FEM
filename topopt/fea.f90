@@ -324,11 +324,12 @@ contains
           thk = mprop(element(e)%mat)%thk
           dens = mprop(element(e)%mat)%dens
          
-
-          call plane42_ke(xe, young, nu, thk, ke)
-            !print *, 'ERROR in fea/buildstiff:'
-            !print *, 'Stiffness matrix for plane42 elements not implemented -- you need to add your own code here'
-            !stop
+          if (.not. topopt_flag) then ! if not topology optimization then
+            call plane42_ke(xe, young, nu, thk, ke)
+          else ! do the topology optimization
+            call plane42_ke_topopt(xe, young, nu, thk, dens, ke)
+          end if
+            
       end select
 
       ! Assemble into global matrix
@@ -1686,12 +1687,12 @@ subroutine topopt
   do i = 1,iopt_max
     call dens_read(dens_old) ! save the old density
     call buildload ! build the load 
-    print*, p
     call buildstiff ! build the stiffness matrix
     call enforce  ! enforce boundary conditions
     call bfactor(kb) ! factorize the stiffness matrix
     call bsolve(kb, p) ! solve the system of equation
     d = p ! store the displacement 
+    print*, d
     call recover_f_grad ! recover the displacement to find f_grad
     call bisect
     call recover_f_tot
@@ -1742,6 +1743,9 @@ subroutine bisect
         dens(e) = dens_old(e)*Be**eta_topopt 
       else if (dens_old(e)*Be**eta_topopt >= 1.0) then
         dens(e) = 1.0
+      else 
+        print*, 'Error in updating density'
+        stop 
       end if
 
     end do

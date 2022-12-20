@@ -231,6 +231,7 @@ module fedata
     real(wp) :: beta_damping = 1E-5
 
     ! TOPOLOGY OPTIMIZATION
+    logical, parameter :: topopt_flag = .false.  ! flag to enable the topology optimization
     real(wp), dimension(:), allocatable :: g_grad
     real(wp), dimension(:), allocatable :: f_grad
     real(wp), dimension(:), allocatable :: dens_old
